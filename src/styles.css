@@ -1,0 +1,1148 @@
+:root {
+  color-scheme: light;
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-soft: #f0f3f8;
+  --text: #14171f;
+  --muted: #667085;
+  --line: #dfe4ed;
+  --brand: #2563eb;
+  --brand-strong: #1d4ed8;
+  --green: #16a34a;
+  --red: #dc2626;
+  --orange: #ea580c;
+  --purple: #7c3aed;
+  --shadow: 0 18px 50px rgba(20, 23, 31, 0.08);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1117;
+  --surface: #151a23;
+  --surface-soft: #1d2430;
+  --text: #eef2f8;
+  --muted: #9ca7b8;
+  --line: #293241;
+  --brand: #60a5fa;
+  --brand-strong: #93c5fd;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.appShell {
+  min-height: 100vh;
+  display: flex;
+}
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 20;
+  width: 280px;
+  padding: 22px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.brand,
+.navItem,
+.statTop,
+.problemMeta span,
+.problemActions,
+.topbar,
+.topbarActions,
+.topSearch,
+.button,
+.countBadge,
+.segmented,
+.calendarHeader,
+.dialogActions,
+.drawerHeader {
+  display: flex;
+  align-items: center;
+}
+
+.brand {
+  gap: 12px;
+}
+
+.brandIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--text);
+  color: var(--surface);
+}
+
+.brand strong,
+.heroMetric strong,
+.statCard strong {
+  display: block;
+}
+
+.brand small,
+.muted,
+.pageHeader p,
+.heroBand p,
+.statCard p,
+.sidebarPanel p,
+.timelineItem p,
+.notesPreview,
+.emptyState p,
+.settingsCard p {
+  color: var(--muted);
+}
+
+.navList {
+  display: grid;
+  gap: 8px;
+}
+
+.navItem {
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  color: var(--muted);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.navItem:hover,
+.navItem.active {
+  background: var(--surface-soft);
+  color: var(--text);
+  transform: translateX(2px);
+}
+
+.sidebarPanel {
+  margin-top: auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.mainArea {
+  flex: 1;
+  margin-left: 280px;
+  min-width: 0;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 70px;
+  padding: 16px 30px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+}
+
+.topSearch {
+  gap: 10px;
+  width: min(520px, 100%);
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--surface);
+}
+
+.topbarTitle {
+  font-weight: 850;
+}
+
+.userBadge {
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.topbarActions {
+  gap: 10px;
+}
+
+.authShell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.12), transparent 42%),
+    linear-gradient(115deg, rgba(22, 163, 74, 0.1), transparent 58%),
+    var(--bg);
+}
+
+.authCard {
+  width: min(480px, 100%);
+  padding: 28px;
+  display: grid;
+  gap: 22px;
+}
+
+.authBrand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.authBrand p,
+.authNote {
+  margin: 0;
+  color: var(--muted);
+}
+
+.authCard h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.authTabs {
+  width: 100%;
+}
+
+.authTabs button {
+  flex: 1;
+  justify-content: center;
+}
+
+.authForm,
+.passwordForm {
+  display: grid;
+  gap: 12px;
+}
+
+.authForm label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.authForm input,
+.passwordForm input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.authNote {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface-soft);
+  font-size: 0.9rem;
+}
+
+.content {
+  width: min(1220px, 100%);
+  margin: 0 auto;
+  padding: 30px;
+}
+
+.pageStack {
+  display: grid;
+  gap: 24px;
+}
+
+.heroBand {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: center;
+  padding: 34px;
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.14), transparent 48%),
+    linear-gradient(115deg, rgba(22, 163, 74, 0.12), transparent 55%),
+    var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 10px;
+  font-size: clamp(2rem, 4vw, 3.7rem);
+  line-height: 1;
+}
+
+h2 {
+  margin-bottom: 8px;
+  font-size: 1.25rem;
+}
+
+h3 {
+  margin-bottom: 14px;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--brand);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.heroMetric {
+  width: 150px;
+  height: 150px;
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background: var(--text);
+  color: var(--surface);
+}
+
+.heroMetric strong {
+  font-size: 3rem;
+}
+
+.grid {
+  display: grid;
+  gap: 18px;
+}
+
+.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.splitGrid,
+.settingsGrid,
+.calendarLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 12px 35px rgba(20, 23, 31, 0.04);
+}
+
+.statCard,
+.listCard,
+.chartCard,
+.controlsCard,
+.settingsCard,
+.calendarCard {
+  padding: 20px;
+}
+
+.statCard {
+  animation: rise 0.35s ease both;
+}
+
+.statTop {
+  justify-content: space-between;
+  margin-bottom: 14px;
+  color: var(--muted);
+}
+
+.statCard strong {
+  margin-bottom: 8px;
+  font-size: clamp(1.6rem, 3vw, 2.35rem);
+}
+
+.statCard.red svg,
+.red {
+  color: var(--red);
+}
+
+.statCard.green svg,
+.green {
+  color: var(--green);
+}
+
+.statCard.blue svg,
+.blue {
+  color: var(--brand);
+}
+
+.statCard.orange svg,
+.orange {
+  color: var(--orange);
+}
+
+.statCard.purple svg,
+.purple {
+  color: var(--purple);
+}
+
+.progressTrack,
+.chartTrack {
+  overflow: hidden;
+  height: 8px;
+  margin: 10px 0;
+  border-radius: 999px;
+  background: var(--surface-soft);
+}
+
+.progressTrack span,
+.chartTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+
+.pageHeader,
+.sectionHeader,
+.problemHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pageHeader {
+  align-items: end;
+}
+
+.button,
+.iconButton,
+.linkButton {
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.button {
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-weight: 750;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.button:hover,
+.iconButton:hover {
+  transform: translateY(-1px);
+}
+
+.primary {
+  background: var(--brand);
+  color: white;
+}
+
+.primary:hover {
+  background: var(--brand-strong);
+}
+
+.secondary {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.danger {
+  background: var(--red);
+  color: white;
+}
+
+.iconButton {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+}
+
+.favoriteOn {
+  color: #eab308;
+}
+
+.dangerIcon {
+  color: var(--red);
+}
+
+.problemGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 18px;
+}
+
+.problemCard {
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.problemCard:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+}
+
+.titleButton {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 1.08rem;
+  font-weight: 850;
+  text-align: left;
+}
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.tagRow span,
+.difficulty,
+.countBadge {
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.difficulty.easy {
+  color: var(--green);
+}
+
+.difficulty.medium {
+  color: var(--orange);
+}
+
+.difficulty.hard {
+  color: var(--red);
+}
+
+.notesPreview {
+  min-height: 44px;
+  margin-bottom: 0;
+  line-height: 1.5;
+}
+
+.problemMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.problemMeta span,
+.problemActions {
+  gap: 7px;
+}
+
+.problemActions {
+  flex-wrap: wrap;
+}
+
+.timeline,
+.miniList,
+.actionStack {
+  display: grid;
+  gap: 12px;
+}
+
+.timelineItem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.timelineItem > span {
+  width: 11px;
+  height: 11px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+.miniList > div {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface-soft);
+  display: grid;
+  gap: 3px;
+}
+
+.miniList span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.controlsCard {
+  display: grid;
+  gap: 14px;
+}
+
+.searchInput {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.searchInput input,
+.userSwitch input,
+.formGrid input,
+.formGrid select,
+.formGrid textarea,
+.notesEditor input,
+.notesEditor textarea,
+.filterGrid select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.searchInput input {
+  border: 0;
+  background: transparent;
+  outline: 0;
+}
+
+.userSwitch {
+  display: flex;
+  gap: 10px;
+}
+
+.userSwitch input {
+  min-height: 42px;
+  padding: 10px 12px;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.filterGrid label,
+.formGrid label,
+.notesEditor label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.filterGrid select,
+.formGrid input,
+.formGrid select,
+.formGrid textarea,
+.notesEditor input,
+.notesEditor textarea {
+  min-height: 42px;
+  padding: 10px 12px;
+}
+
+.toggleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.toggleRow label,
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.autoFillRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  align-self: end;
+}
+
+.autoFillRow span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.drawerLayer,
+.dialogLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.34);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawer {
+  width: min(560px, 100%);
+  height: 100%;
+  padding: 24px;
+  overflow-y: auto;
+  background: var(--surface);
+  animation: slideIn 0.25s ease both;
+}
+
+.drawerHeader {
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.formGrid .full,
+.drawerActions {
+  grid-column: 1 / -1;
+}
+
+.notesEditor {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  display: grid;
+  gap: 14px;
+}
+
+.notesEditor h3 {
+  margin-bottom: 0;
+}
+
+.miniFieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.drawerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.dialogLayer {
+  justify-content: center;
+  align-items: center;
+}
+
+.dialog {
+  width: min(420px, calc(100% - 32px));
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.notesDialog {
+  width: min(620px, calc(100% - 32px));
+  text-align: left;
+}
+
+.notesSections {
+  display: grid;
+  gap: 12px;
+}
+
+.noteSection {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.noteSection div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.noteSection p {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.dialogIcon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: var(--red);
+}
+
+.dialogActions {
+  justify-content: center;
+  gap: 10px;
+}
+
+.emptyState {
+  padding: 44px 24px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.emptyState h3 {
+  margin-top: 12px;
+  color: var(--text);
+}
+
+.chartRows {
+  display: grid;
+  gap: 14px;
+}
+
+.chartMeta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.calendarLayout {
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+
+.calendarHeader {
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.weekGrid,
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.weekGrid {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.calendarDay {
+  min-height: 88px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.calendarDay:hover,
+.selectedDay {
+  border-color: var(--brand);
+}
+
+.mutedDay {
+  opacity: 0.45;
+}
+
+.todayDay {
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+
+.dayDots {
+  display: flex;
+  gap: 5px;
+  margin-top: 28px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.redDot {
+  background: var(--red);
+}
+
+.greenDot {
+  background: var(--green);
+}
+
+.blueDot {
+  background: var(--brand);
+}
+
+.segmented {
+  width: fit-content;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.segmented button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.segmented .selected {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 6px 16px rgba(20, 23, 31, 0.08);
+}
+
+.hiddenInput,
+.mobileOnly {
+  display: none;
+}
+
+.toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: rise 0.25s ease both;
+}
+
+.toast button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.toast.success svg {
+  color: var(--green);
+}
+
+.toast.warning svg,
+.toast.error svg {
+  color: var(--red);
+}
+
+.skeletonCard {
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.skeletonCard span,
+.skeletonCard strong,
+.skeletonCard p {
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--surface-soft), var(--line), var(--surface-soft));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite linear;
+}
+
+.skeletonCard strong {
+  width: 70%;
+  height: 34px;
+}
+
+.skeletonCard p {
+  width: 90%;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  border: 0;
+  background: rgba(0, 0, 0, 0.36);
+}
+
+.floatingClose {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 30;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(24px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+
+  .mainArea {
+    margin-left: 0;
+  }
+
+  .mobileOnly {
+    display: grid;
+  }
+
+  .three,
+  .splitGrid,
+  .settingsGrid,
+  .calendarLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .userBadge {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .content,
+  .topbar {
+    padding: 18px;
+  }
+
+  .heroBand,
+  .pageHeader {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .heroMetric {
+    width: 100%;
+    height: auto;
+    min-height: 110px;
+  }
+
+  .filterGrid,
+  .formGrid,
+  .miniFieldGrid,
+  .userSwitch {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .calendarDay {
+    min-height: 62px;
+    padding: 7px;
+  }
+
+  .dayDots {
+    margin-top: 14px;
+  }
+}
