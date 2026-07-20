@@ -13,7 +13,8 @@ CodeRevise is a modern React application for programmers who want to retain codi
 - Analytics page with total solved, total revisions, completion rate, streaks, topic distribution, difficulty distribution, weakest topic, and most practiced topic
 - Monthly calendar with red due indicators, green completed indicators, and blue today indicators
 - Settings for light/dark mode, reset data, export JSON, and import JSON
-- Local Storage persistence across browser refreshes
+- Firebase Authentication and Firestore cloud sync when configured
+- Local Storage fallback when Firebase environment variables are not configured
 - Responsive dashboard UI with sidebar navigation, loading skeletons, empty states, toast notifications, and delete confirmation dialogs
 
 ## Screenshots
@@ -35,6 +36,40 @@ npm run dev
 
 Open the local URL printed by Vite in your browser.
 
+## Cloud Sync Setup
+
+CodeRevise supports Firebase email/password authentication and Firestore sync.
+
+1. Create a Firebase project.
+2. Enable **Authentication > Email/Password**.
+3. Create a **Firestore Database**.
+4. Copy `.env.example` to `.env.local`.
+5. Fill in your Firebase web app keys:
+
+```bash
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_APP_ID=your-app-id
+```
+
+Recommended Firestore rule shape:
+
+```js
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+If Firebase keys are missing, the app still works using Local Storage only.
+
 ## Folder Structure
 
 ```text
@@ -54,6 +89,7 @@ src/
 - React Router
 - Context API
 - Local Storage
+- Firebase Auth and Firestore
 - CSS Modules-style organization through modular component structure and global design tokens
 - Lucide React icons
 - Vite
@@ -74,7 +110,6 @@ After the fifth revision, the problem is marked completed.
 
 ## Future Improvements
 
-- Cloud sync and authentication
 - Custom revision intervals
 - CSV import/export
 - Browser extension for one-click problem capture

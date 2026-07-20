@@ -1,5 +1,7 @@
 import {
   Archive,
+  Bookmark,
+  BookmarkCheck,
   CalendarCheck,
   CheckCircle2,
   Edit3,
@@ -19,10 +21,18 @@ const difficultyClass = {
   Hard: "hard"
 };
 
-export default function ProblemCard({ problem, onEdit, onDelete, compact = false }) {
-  const { toggleFavorite, toggleArchive, completeRevision, markRecentlyViewed } = useApp();
+export default function ProblemCard({ problem, onEdit, onDelete, compact = false, futureMode = false }) {
+  const {
+    toggleFavorite,
+    toggleArchive,
+    togglePracticeLater,
+    markPracticeDone,
+    completeRevision,
+    markRecentlyViewed
+  } = useApp();
   const [notesOpen, setNotesOpen] = useState(false);
   const notesPreview = problem.description || problem.notes || problem.revisionNotes?.approach;
+  const manualPractice = futureMode || problem.practiceLater;
 
   return (
     <article className={`card problemCard ${compact ? "compact" : ""}`}>
@@ -51,15 +61,25 @@ export default function ProblemCard({ problem, onEdit, onDelete, compact = false
       <p className="notesPreview">{notesPreview || "No description or notes yet."}</p>
 
       <div className="problemMeta">
-        <span>
-          <CalendarCheck size={15} /> Due {humanDate(problem.nextRevisionDate)}
-        </span>
-        <span>Stage {problem.revisionStage}/5</span>
+        {manualPractice ? (
+          <span>
+            <BookmarkCheck size={15} /> No scheduled date
+          </span>
+        ) : (
+          <span>
+            <CalendarCheck size={15} /> Due {humanDate(problem.nextRevisionDate)}
+          </span>
+        )}
+        <span>{manualPractice ? "Manual practice" : `Stage ${problem.revisionStage}/5`}</span>
       </div>
 
       <div className="problemActions">
-        <button className="button primary" type="button" onClick={() => completeRevision(problem.id)}>
-          <CheckCircle2 size={16} /> Mark revised
+        <button
+          className="button primary"
+          type="button"
+          onClick={() => (manualPractice ? markPracticeDone(problem.id) : completeRevision(problem.id))}
+        >
+          <CheckCircle2 size={16} /> {manualPractice ? "Mark practiced" : "Mark revised"}
         </button>
         <a className="button secondary" href={problem.url || "#"} target="_blank" rel="noreferrer">
           <ExternalLink size={16} /> Open
@@ -67,10 +87,19 @@ export default function ProblemCard({ problem, onEdit, onDelete, compact = false
         <button className="iconButton" type="button" onClick={() => setNotesOpen(true)} title="Notes">
           <FileText size={17} />
         </button>
-        {!compact && (
+        {!compact && !futureMode && (
           <>
             <button className="iconButton" type="button" onClick={() => onEdit(problem)} title="Edit">
               <Edit3 size={17} />
+            </button>
+            <button
+              className={`iconButton ${problem.practiceLater ? "favoriteOn" : ""}`}
+              type="button"
+              onClick={() => togglePracticeLater(problem.id)}
+              title={problem.practiceLater ? "Remove from future practice" : "Save for future practice"}
+              aria-label={problem.practiceLater ? "Remove from future practice" : "Save for future practice"}
+            >
+              {problem.practiceLater ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
             </button>
             <button
               className="iconButton"
@@ -85,6 +114,11 @@ export default function ProblemCard({ problem, onEdit, onDelete, compact = false
               <Trash2 size={17} />
             </button>
           </>
+        )}
+        {futureMode && (
+          <button className="button secondary" type="button" onClick={() => togglePracticeLater(problem.id)}>
+            <Bookmark size={16} /> Remove
+          </button>
         )}
       </div>
       {notesOpen && <NotesDialog problem={problem} onClose={() => setNotesOpen(false)} />}

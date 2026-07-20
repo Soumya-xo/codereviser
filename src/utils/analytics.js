@@ -14,7 +14,7 @@ export function getActiveProblems(problems) {
 
 export function getDueProblems(problems) {
   return getActiveProblems(problems).filter(
-    (problem) => !problem.completed && isPastOrToday(problem.nextRevisionDate)
+    (problem) => !problem.practiceLater && !problem.completed && isPastOrToday(problem.nextRevisionDate)
   );
 }
 

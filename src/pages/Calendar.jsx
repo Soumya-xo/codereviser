@@ -15,7 +15,7 @@ export default function Calendar() {
   const byDate = useMemo(() => {
     const map = {};
     problems.forEach((problem) => {
-      if (problem.nextRevisionDate) {
+      if (!problem.practiceLater && problem.nextRevisionDate) {
         map[problem.nextRevisionDate] = [...(map[problem.nextRevisionDate] || []), problem];
       }
       (problem.revisionHistory || [])

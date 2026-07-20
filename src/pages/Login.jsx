@@ -4,14 +4,14 @@ import { useApp } from "../context/AppContext";
 import Toast from "../components/Toast";
 
 export default function Login() {
-  const { login, register } = useApp();
+  const { cloudEnabled, login, register } = useApp();
   const [mode, setMode] = useState("login");
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    const success = mode === "login" ? login(userId, password) : register(userId, password);
+    const success = mode === "login" ? await login(userId, password) : await register(userId, password);
     if (success) {
       setUserId("");
       setPassword("");
@@ -34,7 +34,11 @@ export default function Login() {
         <div>
           <span className="eyebrow">Account</span>
           <h1>{mode === "login" ? "Login to your planner" : "Create your planner"}</h1>
-          <p className="muted">Your problems and revision history stay separate for each user ID on this device.</p>
+          <p className="muted">
+            {cloudEnabled
+              ? "Login with email and password. Your problems sync to the cloud."
+              : "Your problems and revision history stay separate for each user ID on this device."}
+          </p>
         </div>
 
         <div className="segmented authTabs">
@@ -48,8 +52,14 @@ export default function Login() {
 
         <form className="authForm" onSubmit={handleSubmit}>
           <label>
-            User ID
-            <input value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="your-user-id" required />
+            {cloudEnabled ? "Email" : "User ID"}
+            <input
+              value={userId}
+              onChange={(event) => setUserId(event.target.value)}
+              placeholder={cloudEnabled ? "you@example.com" : "your-user-id"}
+              type={cloudEnabled ? "email" : "text"}
+              required
+            />
           </label>
           <label>
             Password
@@ -68,7 +78,9 @@ export default function Login() {
         </form>
 
         <p className="authNote">
-          This is local-device account separation using Local Storage, not internet/server authentication.
+          {cloudEnabled
+            ? "Cloud sync is enabled with Firebase Authentication and Firestore."
+            : "Firebase is not configured yet, so this is local-device account separation using Local Storage."}
         </p>
       </section>
       <Toast />

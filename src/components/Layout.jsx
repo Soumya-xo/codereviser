@@ -3,6 +3,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Code2,
+  BookmarkCheck,
   LayoutDashboard,
   ListTodo,
   Menu,
@@ -20,6 +21,7 @@ const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/problems", label: "Problems", icon: ListTodo },
   { to: "/today", label: "Today", icon: CheckCircle2 },
+  { to: "/future", label: "Future Practice", icon: BookmarkCheck },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/settings", label: "Settings", icon: Settings }

@@ -33,17 +33,17 @@ export default function Settings() {
     URL.revokeObjectURL(url);
   }
 
-  function handlePasswordChange(event) {
+  async function handlePasswordChange(event) {
     event.preventDefault();
-    if (changePassword(currentPassword, nextPassword)) {
+    if (await changePassword(currentPassword, nextPassword)) {
       setCurrentPassword("");
       setNextPassword("");
     }
   }
 
-  function handleUserIdChange(event) {
+  async function handleUserIdChange(event) {
     event.preventDefault();
-    if (changeUserId(nextUserId, renamePassword)) {
+    if (await changeUserId(nextUserId, renamePassword)) {
       setRenamePassword("");
     }
   }
@@ -75,7 +75,7 @@ export default function Settings() {
         <section className="card settingsCard">
           <span className="eyebrow">Account</span>
           <h2>{activeUserId}</h2>
-          <p>This account has its own problems, revision queue, calendar, and analytics on this device.</p>
+          <p>This account has its own problems, revision queue, calendar, and analytics.</p>
           <button className="button secondary" type="button" onClick={logout}>
             <LogOut size={16} /> Logout
           </button>
@@ -83,9 +83,9 @@ export default function Settings() {
 
         <section className="card settingsCard">
           <span className="eyebrow">Profile</span>
-          <h2>Change user ID</h2>
+          <h2>Change email / user ID</h2>
           <form className="passwordForm" onSubmit={handleUserIdChange}>
-            <input value={nextUserId} onChange={(event) => setNextUserId(event.target.value)} placeholder="New user ID" />
+            <input value={nextUserId} onChange={(event) => setNextUserId(event.target.value)} placeholder="New email or user ID" />
             <input
               value={renamePassword}
               onChange={(event) => setRenamePassword(event.target.value)}

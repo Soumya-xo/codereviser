@@ -1,21 +1,31 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { sampleProblems } from "../data/sampleProblems";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import {
+  auth,
+  createUserWithEmailAndPassword,
+  db,
+  doc,
+  EmailAuthProvider,
+  getDoc,
+  isFirebaseConfigured,
+  onAuthStateChanged,
+  onSnapshot,
+  reauthenticateWithCredential,
+  setDoc,
+  signInWithEmailAndPassword,
+  signOut,
+  updateEmail,
+  updatePassword
+} from "../services/firebase";
 import { formatDate } from "../utils/date";
 import { buildScheduledHistory, getInitialRevisionDate, getNextRevisionDate } from "../utils/revision";
 
 const AppContext = createContext(null);
 
-const STORAGE_KEY = "coderevise-state-v3";
-const USER_STORAGE_KEY = "coderevise-state-v2";
-const LEGACY_STORAGE_KEY = "coderevise-state";
+const STORAGE_KEY = "coderevise-state-v4";
+const PREVIOUS_STORAGE_KEYS = ["coderevise-state-v3", "coderevise-state-v2", "coderevise-state"];
 const DEFAULT_USER_ID = "";
-
-const defaultUserState = {
-  problems: sampleProblems,
-  searchHistory: [],
-  recentlyViewed: []
-};
 
 const blankUserState = {
   problems: [],
@@ -41,45 +51,45 @@ function normalizeUserId(userId) {
   return userId.trim().toLowerCase();
 }
 
-function withAccountFields(user, passwordHash = "") {
+function withAccountFields(user = blankUserState, passwordHash = "") {
   return {
     ...blankUserState,
     ...user,
-    passwordHash,
-    createdAt: user?.createdAt || formatDate()
+    passwordHash: user.passwordHash || passwordHash,
+    createdAt: user.createdAt || formatDate()
   };
 }
 
 function getInitialState() {
-  try {
-    const v2 = JSON.parse(localStorage.getItem(USER_STORAGE_KEY));
-    if (v2?.users) {
-      const userId = v2.activeUserId || "default";
-      return {
-        sessionUserId: userId,
-        theme: v2.theme || "light",
-        users: Object.fromEntries(
-          Object.entries(v2.users).map(([id, user]) => [id, withAccountFields(user, user.passwordHash || "")])
-        )
-      };
+  for (const key of PREVIOUS_STORAGE_KEYS) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(key));
+      if (stored?.users) {
+        const sessionUserId = stored.sessionUserId || stored.activeUserId || "";
+        return {
+          sessionUserId,
+          theme: stored.theme || "light",
+          users: Object.fromEntries(
+            Object.entries(stored.users).map(([id, user]) => [id, withAccountFields(user, user.passwordHash || "")])
+          )
+        };
+      }
+      if (stored?.problems) {
+        return {
+          sessionUserId: "default",
+          theme: stored.theme || "light",
+          users: {
+            default: withAccountFields({
+              problems: stored.problems || [],
+              searchHistory: stored.searchHistory || [],
+              recentlyViewed: stored.recentlyViewed || []
+            })
+          }
+        };
+      }
+    } catch {
+      continue;
     }
-
-    const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY));
-    if (legacy?.problems) {
-      return {
-        sessionUserId: "default",
-        theme: legacy.theme || "light",
-        users: {
-          default: withAccountFields({
-            problems: legacy.problems || [],
-            searchHistory: legacy.searchHistory || [],
-            recentlyViewed: legacy.recentlyViewed || []
-          })
-        }
-      };
-    }
-  } catch {
-    return defaultState;
   }
 
   return defaultState;
@@ -102,6 +112,7 @@ function makeProblem(input) {
     nextRevisionDate: getInitialRevisionDate(dateSolved),
     revisionStage: 0,
     favorite: Boolean(input.favorite),
+    practiceLater: false,
     completed: false,
     archived: false,
     revisionHistory: buildScheduledHistory(dateSolved),
@@ -110,14 +121,43 @@ function makeProblem(input) {
   };
 }
 
+function toCloudUser(userState, theme) {
+  return {
+    problems: userState.problems || [],
+    searchHistory: userState.searchHistory || [],
+    recentlyViewed: userState.recentlyViewed || [],
+    theme: theme || "light",
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function fromCloudUser(payload) {
+  return {
+    problems: payload?.problems || [],
+    searchHistory: payload?.searchHistory || [],
+    recentlyViewed: payload?.recentlyViewed || []
+  };
+}
+
+function userDocRef(uid) {
+  return doc(db, "users", uid);
+}
+
 export function AppProvider({ children }) {
   const [state, setState] = useLocalStorage(STORAGE_KEY, getInitialState);
+  const [cloudUser, setCloudUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(isFirebaseConfigured);
+  const [cloudReady, setCloudReady] = useState(!isFirebaseConfigured);
   const [toast, setToast] = useState(null);
+  const skipNextCloudSave = useRef(false);
 
   const theme = state.theme || "light";
-  const activeUserId = state.sessionUserId || DEFAULT_USER_ID;
-  const isAuthenticated = Boolean(activeUserId && state.users?.[activeUserId]);
-  const currentUser = state.users?.[activeUserId] || blankUserState;
+  const activeUserId = isFirebaseConfigured ? cloudUser?.email || "" : state.sessionUserId || DEFAULT_USER_ID;
+  const activeStorageKey = isFirebaseConfigured ? cloudUser?.uid : activeUserId;
+  const isAuthenticated = isFirebaseConfigured
+    ? Boolean(cloudUser)
+    : Boolean(activeUserId && state.users?.[activeUserId]);
+  const currentUser = activeStorageKey ? state.users?.[activeStorageKey] || blankUserState : blankUserState;
   const problems = currentUser.problems || [];
   const searchHistory = currentUser.searchHistory || [];
   const recentlyViewed = currentUser.recentlyViewed || [];
@@ -126,20 +166,77 @@ export function AppProvider({ children }) {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  useEffect(() => {
+    if (!isFirebaseConfigured) return undefined;
+
+    return onAuthStateChanged(auth, (user) => {
+      setCloudUser(user);
+      setAuthLoading(false);
+      if (!user) {
+        setCloudReady(true);
+        setState((current) => ({ ...current, sessionUserId: "" }));
+      }
+    });
+  }, [setState]);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured || !cloudUser) return undefined;
+
+    setCloudReady(false);
+    return onSnapshot(
+      userDocRef(cloudUser.uid),
+      async (snapshot) => {
+        if (!snapshot.exists()) {
+          const previousLocalUser = state.users[state.sessionUserId] || blankUserState;
+          await setDoc(userDocRef(cloudUser.uid), toCloudUser(previousLocalUser, theme));
+          return;
+        }
+
+        const data = snapshot.data();
+        skipNextCloudSave.current = true;
+        setState((current) => ({
+          ...current,
+          sessionUserId: cloudUser.uid,
+          theme: data.theme || current.theme || "light",
+          users: {
+            ...current.users,
+            [cloudUser.uid]: fromCloudUser(data)
+          }
+        }));
+        setCloudReady(true);
+      },
+      () => {
+        setCloudReady(true);
+        notify("Cloud sync connection failed. Local cached data is still available.", "error");
+      }
+    );
+  }, [cloudUser, setState]);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured || !cloudUser || !cloudReady) return;
+    if (skipNextCloudSave.current) {
+      skipNextCloudSave.current = false;
+      return;
+    }
+    setDoc(userDocRef(cloudUser.uid), toCloudUser(currentUser, theme), { merge: true }).catch(() => {
+      notify("Could not sync latest changes to cloud.", "error");
+    });
+  }, [cloudUser, cloudReady, currentUser, theme]);
+
   function notify(message, type = "success") {
     setToast({ id: crypto.randomUUID(), message, type });
   }
 
   function updateCurrentUser(updater) {
     setState((current) => {
-      const userId = current.sessionUserId;
-      if (!userId) return current;
-      const userState = current.users?.[userId] || blankUserState;
+      const userKey = isFirebaseConfigured ? cloudUser?.uid : current.sessionUserId;
+      if (!userKey) return current;
+      const userState = current.users?.[userKey] || blankUserState;
       return {
         ...current,
         users: {
           ...current.users,
-          [userId]: updater(userState)
+          [userKey]: updater(userState)
         }
       };
     });
@@ -199,6 +296,34 @@ export function AppProvider({ children }) {
       )
     }));
     notify("Archive status updated.");
+  }
+
+  function togglePracticeLater(id) {
+    updateCurrentUser((user) => ({
+      ...user,
+      problems: user.problems.map((problem) =>
+        problem.id === id ? { ...problem, practiceLater: !problem.practiceLater, updatedAt: formatDate() } : problem
+      )
+    }));
+    notify("Future practice list updated.");
+  }
+
+  function markPracticeDone(id) {
+    const today = formatDate();
+    updateCurrentUser((user) => ({
+      ...user,
+      problems: user.problems.map((problem) =>
+        problem.id === id
+          ? {
+              ...problem,
+              lastRevised: today,
+              revisionHistory: [...(problem.revisionHistory || []), { date: today, stage: "practice" }],
+              updatedAt: today
+            }
+          : problem
+      )
+    }));
+    notify("Practice logged without changing the revision date.");
   }
 
   function completeRevision(id) {
@@ -261,7 +386,8 @@ export function AppProvider({ children }) {
       notify("Import failed. JSON must include a problems array.", "error");
       return false;
     }
-    updateCurrentUser(() => ({
+    updateCurrentUser((user) => ({
+      ...user,
       problems: payload.problems,
       searchHistory: payload.searchHistory || [],
       recentlyViewed: payload.recentlyViewed || []
@@ -270,17 +396,29 @@ export function AppProvider({ children }) {
     return true;
   }
 
-  function register(userId, password) {
+  async function register(userId, password) {
     const cleaned = normalizeUserId(userId);
     if (!cleaned || !password) {
-      notify("Enter both user ID and password.", "error");
+      notify("Enter both email/user ID and password.", "error");
       return false;
     }
+
+    if (isFirebaseConfigured) {
+      try {
+        const credential = await createUserWithEmailAndPassword(auth, cleaned, password);
+        await setDoc(userDocRef(credential.user.uid), toCloudUser(blankUserState, theme));
+        notify(`Cloud account created for "${cleaned}".`);
+        return true;
+      } catch (error) {
+        notify(error.message || "Could not create cloud account.", "error");
+        return false;
+      }
+    }
+
     if (state.users?.[cleaned]) {
       notify("This user ID already exists. Login instead.", "error");
       return false;
     }
-
     setState((current) => ({
       ...current,
       sessionUserId: cleaned,
@@ -289,12 +427,23 @@ export function AppProvider({ children }) {
         [cleaned]: withAccountFields(blankUserState, hashPassword(password))
       }
     }));
-    notify(`Account created for "${cleaned}".`);
+    notify(`Local account created for "${cleaned}".`);
     return true;
   }
 
-  function login(userId, password) {
+  async function login(userId, password) {
     const cleaned = normalizeUserId(userId);
+    if (isFirebaseConfigured) {
+      try {
+        await signInWithEmailAndPassword(auth, cleaned, password);
+        notify(`Logged in as "${cleaned}".`);
+        return true;
+      } catch (error) {
+        notify(error.message || "Could not login.", "error");
+        return false;
+      }
+    }
+
     const user = state.users?.[cleaned];
     if (!user) {
       notify("User ID not found. Create an account first.", "error");
@@ -304,28 +453,43 @@ export function AppProvider({ children }) {
       notify("Wrong password.", "error");
       return false;
     }
-
     setState((current) => ({ ...current, sessionUserId: cleaned }));
     notify(`Logged in as "${cleaned}".`);
     return true;
   }
 
-  function logout() {
+  async function logout() {
+    if (isFirebaseConfigured) {
+      await signOut(auth);
+    }
     setState((current) => ({ ...current, sessionUserId: "" }));
     notify("Logged out.");
   }
 
-  function changePassword(currentPassword, nextPassword) {
-    if (!activeUserId || !nextPassword) {
+  async function changePassword(currentPassword, nextPassword) {
+    if (!nextPassword) {
       notify("Enter a new password.", "error");
       return false;
     }
+
+    if (isFirebaseConfigured) {
+      try {
+        const credential = EmailAuthProvider.credential(cloudUser.email, currentPassword);
+        await reauthenticateWithCredential(cloudUser, credential);
+        await updatePassword(cloudUser, nextPassword);
+        notify("Cloud password updated.");
+        return true;
+      } catch (error) {
+        notify(error.message || "Could not update password.", "error");
+        return false;
+      }
+    }
+
     const user = state.users?.[activeUserId];
     if (user?.passwordHash && user.passwordHash !== hashPassword(currentPassword)) {
       notify("Current password is incorrect.", "error");
       return false;
     }
-
     updateCurrentUser((currentUserState) => ({
       ...currentUserState,
       passwordHash: hashPassword(nextPassword)
@@ -334,12 +498,26 @@ export function AppProvider({ children }) {
     return true;
   }
 
-  function changeUserId(nextUserId, password) {
+  async function changeUserId(nextUserId, password) {
     const cleaned = normalizeUserId(nextUserId);
-    if (!activeUserId || !cleaned) {
-      notify("Enter a new user ID.", "error");
+    if (!cleaned) {
+      notify("Enter a new email/user ID.", "error");
       return false;
     }
+
+    if (isFirebaseConfigured) {
+      try {
+        const credential = EmailAuthProvider.credential(cloudUser.email, password);
+        await reauthenticateWithCredential(cloudUser, credential);
+        await updateEmail(cloudUser, cleaned);
+        notify(`Email changed to "${cleaned}".`);
+        return true;
+      } catch (error) {
+        notify(error.message || "Could not update email.", "error");
+        return false;
+      }
+    }
+
     if (cleaned === activeUserId) {
       notify("This is already your current user ID.", "error");
       return false;
@@ -348,13 +526,11 @@ export function AppProvider({ children }) {
       notify("That user ID is already taken.", "error");
       return false;
     }
-
     const user = state.users?.[activeUserId];
     if (user?.passwordHash && user.passwordHash !== hashPassword(password)) {
       notify("Password is incorrect.", "error");
       return false;
     }
-
     setState((current) => {
       const { [activeUserId]: currentUserData, ...remainingUsers } = current.users || {};
       return {
@@ -374,6 +550,9 @@ export function AppProvider({ children }) {
     () => ({
       users: state.users || {},
       activeUserId,
+      authLoading,
+      cloudEnabled: isFirebaseConfigured,
+      cloudReady,
       isAuthenticated,
       problems,
       searchHistory,
@@ -386,6 +565,8 @@ export function AppProvider({ children }) {
       deleteProblem,
       toggleFavorite,
       toggleArchive,
+      togglePracticeLater,
+      markPracticeDone,
       completeRevision,
       addSearchTerm,
       markRecentlyViewed,
@@ -398,7 +579,18 @@ export function AppProvider({ children }) {
       changePassword,
       changeUserId
     }),
-    [state.users, activeUserId, isAuthenticated, problems, searchHistory, recentlyViewed, theme, toast]
+    [
+      state.users,
+      activeUserId,
+      authLoading,
+      cloudReady,
+      isAuthenticated,
+      problems,
+      searchHistory,
+      recentlyViewed,
+      theme,
+      toast
+    ]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

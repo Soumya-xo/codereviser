@@ -31,7 +31,7 @@ export default function Dashboard() {
   const weakestTopic = getWeakestTopic(problems);
   const recent = recentlyViewed.map((id) => problems.find((problem) => problem.id === id)).filter(Boolean);
   const upcoming = active
-    .filter((problem) => problem.nextRevisionDate && !problem.completed)
+    .filter((problem) => !problem.practiceLater && problem.nextRevisionDate && !problem.completed)
     .sort((a, b) => a.nextRevisionDate.localeCompare(b.nextRevisionDate))
     .slice(0, 5);
 
