@@ -15,6 +15,7 @@ CodeRevise is a modern React application for programmers who want to retain codi
 - Settings for light/dark mode, reset data, export JSON, and import JSON
 - Firebase Authentication and Firestore cloud sync when configured
 - Local Storage fallback when Firebase environment variables are not configured
+- Chrome extension for one-click problem capture from coding sites
 - Responsive dashboard UI with sidebar navigation, loading skeletons, empty states, toast notifications, and delete confirmation dialogs
 
 ## Screenshots
@@ -70,6 +71,21 @@ service cloud.firestore {
 
 If Firebase keys are missing, the app still works using Local Storage only.
 
+## Browser Extension
+
+The Chrome extension lives in `extension/`.
+
+Local setup:
+
+1. Start CodeRevise with `npm run dev`.
+2. Open `chrome://extensions`.
+3. Turn on **Developer mode**.
+4. Click **Load unpacked**.
+5. Select the `codereviser/extension` folder.
+6. Open a coding problem page and click the CodeRevise extension button.
+
+The extension opens `/capture`, where the app auto-detects details from the URL and saves the problem to the logged-in account.
+
 ## Folder Structure
 
 ```text
@@ -112,7 +128,6 @@ After the fifth revision, the problem is marked completed.
 
 - Custom revision intervals
 - CSV import/export
-- Browser extension for one-click problem capture
 - Rich Markdown notes
 - More chart types and weekly progress summaries
 - Test suite with React Testing Library

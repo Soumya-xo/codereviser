@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import { useApp } from "./context/AppContext";
 import Analytics from "./pages/Analytics";
 import Calendar from "./pages/Calendar";
+import Capture from "./pages/Capture";
 import Dashboard from "./pages/Dashboard";
 import FuturePractice from "./pages/FuturePractice";
 import Login from "./pages/Login";
@@ -11,15 +12,15 @@ import Settings from "./pages/Settings";
 import Today from "./pages/Today";
 
 export default function App() {
-  const { authLoading, isAuthenticated } = useApp();
+  const { authLoading, cloudReady, isAuthenticated } = useApp();
 
-  if (authLoading) {
+  if (authLoading || (isAuthenticated && !cloudReady)) {
     return (
       <main className="authShell">
         <section className="authCard card">
           <span className="eyebrow">CodeRevise</span>
           <h1>Loading your account</h1>
-          <p className="muted">Checking cloud authentication...</p>
+          <p className="muted">Checking cloud authentication and syncing your planner...</p>
         </section>
       </main>
     );
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/future" element={<FuturePractice />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/calendar" element={<Calendar />} />
+        <Route path="/capture" element={<Capture />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

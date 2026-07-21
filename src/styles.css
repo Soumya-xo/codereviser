@@ -914,6 +914,53 @@ h3 {
   border-color: var(--brand);
 }
 
+.captureCard {
+  padding: 22px;
+  display: grid;
+  gap: 18px;
+}
+
+.captureStatus {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.captureStatus svg {
+  color: var(--green);
+  margin-top: 3px;
+}
+
+.captureStatus h2,
+.captureStatus p {
+  margin-bottom: 4px;
+}
+
+.captureDetails {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.captureDetails div {
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  display: grid;
+  gap: 5px;
+}
+
+.captureDetails span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.errorText svg {
+  color: var(--red);
+}
+
 .mutedDay {
   opacity: 0.45;
 }
@@ -1102,7 +1149,8 @@ h3 {
   .three,
   .splitGrid,
   .settingsGrid,
-  .calendarLayout {
+  .calendarLayout,
+  .captureDetails {
     grid-template-columns: 1fr;
   }
 

@@ -19,6 +19,7 @@ import {
   updatePassword
 } from "../services/firebase";
 import { formatDate } from "../utils/date";
+import { dedupeProblemsByUrl, normalizeProblemUrl, upsertProblemByUrl } from "../utils/problemIdentity";
 import { buildScheduledHistory, getInitialRevisionDate, getNextRevisionDate } from "../utils/revision";
 
 const AppContext = createContext(null);
@@ -123,7 +124,7 @@ function makeProblem(input) {
 
 function toCloudUser(userState, theme) {
   return {
-    problems: userState.problems || [],
+    problems: dedupeProblemsByUrl(userState.problems || []),
     searchHistory: userState.searchHistory || [],
     recentlyViewed: userState.recentlyViewed || [],
     theme: theme || "light",
@@ -133,7 +134,7 @@ function toCloudUser(userState, theme) {
 
 function fromCloudUser(payload) {
   return {
-    problems: payload?.problems || [],
+    problems: dedupeProblemsByUrl(payload?.problems || []),
     searchHistory: payload?.searchHistory || [],
     recentlyViewed: payload?.recentlyViewed || []
   };
@@ -218,6 +219,10 @@ export function AppProvider({ children }) {
       skipNextCloudSave.current = false;
       return;
     }
+    console.info("[CodeRevise sync] Writing user document to Firestore", {
+      uid: cloudUser.uid,
+      problemCount: dedupeProblemsByUrl(currentUser.problems || []).length
+    });
     setDoc(userDocRef(cloudUser.uid), toCloudUser(currentUser, theme), { merge: true }).catch(() => {
       notify("Could not sync latest changes to cloud.", "error");
     });
@@ -244,8 +249,55 @@ export function AppProvider({ children }) {
 
   function addProblem(input) {
     const problem = makeProblem(input);
+    console.info("[CodeRevise addProblem] Creating scheduled problem", {
+      name: problem.name,
+      url: problem.url
+    });
     updateCurrentUser((user) => ({ ...user, problems: [problem, ...user.problems] }));
     notify("Problem added to your revision plan.");
+  }
+
+  function captureProblem(input) {
+    const problem = makeProblem(input);
+    const baseProblems = currentUser.problems || [];
+    const result = upsertProblemByUrl(baseProblems, problem);
+    const nextUserState = { ...currentUser, problems: result.problems };
+    const existedBefore = baseProblems.some(
+      (existingProblem) => normalizeProblemUrl(existingProblem.url) === normalizeProblemUrl(problem.url)
+    );
+
+    console.info("[CodeRevise captureProblem] Save requested", {
+      name: problem.name,
+      url: problem.url,
+      normalizedUrl: normalizeProblemUrl(problem.url),
+      existedBefore,
+      currentProblemCount: baseProblems.length
+    });
+
+    updateCurrentUser((user) => {
+      const latestResult = upsertProblemByUrl(user.problems || [], problem);
+      console.info("[CodeRevise captureProblem] Upsert completed", {
+        url: problem.url,
+        didCreate: latestResult.didCreate,
+        problemCount: latestResult.problems.length
+      });
+      return { ...user, problems: latestResult.problems };
+    });
+
+    if (isFirebaseConfigured && cloudUser) {
+      console.info("[CodeRevise captureProblem] Writing captured problem to Firestore immediately", {
+        uid: cloudUser.uid,
+        url: problem.url,
+        didCreate: result.didCreate,
+        problemCount: result.problems.length
+      });
+      setDoc(userDocRef(cloudUser.uid), toCloudUser(nextUserState, theme), { merge: true }).catch(() => {
+        notify("Problem was saved locally, but cloud sync failed.", "error");
+      });
+    }
+
+    notify(existedBefore ? "Problem already existed. Details refreshed." : "Problem captured to your planner.");
+    return { created: !existedBefore };
   }
 
   function updateProblem(id, updates) {
@@ -561,6 +613,7 @@ export function AppProvider({ children }) {
       toast,
       setToast,
       addProblem,
+      captureProblem,
       updateProblem,
       deleteProblem,
       toggleFavorite,

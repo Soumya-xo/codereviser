@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="CodeRevise">
+  <rect width="128" height="128" rx="28" fill="#14171f"/>
+  <path d="M54 34 28 64l26 30" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M74 34 100 64 74 94" fill="none" stroke="#60a5fa" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
