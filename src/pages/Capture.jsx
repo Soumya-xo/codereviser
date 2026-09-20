@@ -6,6 +6,7 @@ import { normalizeProblemUrl } from "../utils/problemIdentity";
 import { getProblemMetadataFromUrl } from "../utils/problemMetadata";
 
 const processedCaptureKeys = new Set();
+const VALID_DIFFICULTIES = ["Easy", "Medium", "Hard"];
 
 export default function Capture() {
   const [searchParams] = useSearchParams();
@@ -15,6 +16,7 @@ export default function Capture() {
 
   const url = searchParams.get("url") || "";
   const pageTitle = searchParams.get("title") || "";
+  const extractedDifficulty = searchParams.get("difficulty") || "";
   const normalizedUrl = normalizeProblemUrl(url);
 
   const capturedProblem = useMemo(() => {
@@ -25,11 +27,14 @@ export default function Capture() {
     return {
       ...metadata,
       name: genericNames.includes(metadata.name) && pageTitle ? pageTitle : metadata.name,
+      // The extension only sends a "difficulty" param when it actually read one off
+      // the live page DOM - trust that over the URL-slug catalog guess when present.
+      difficulty: VALID_DIFFICULTIES.includes(extractedDifficulty) ? extractedDifficulty : metadata.difficulty,
       dateSolved: new Date().toISOString().slice(0, 10),
       notes: "",
       favorite: false
     };
-  }, [pageTitle, url]);
+  }, [extractedDifficulty, pageTitle, url]);
 
   const alreadyExists = problems.some((problem) => normalizeProblemUrl(problem.url) === normalizedUrl);
 
@@ -37,20 +42,12 @@ export default function Capture() {
     if (!capturedProblem || !cloudReady || status !== "ready") return;
 
     const captureKey = `${normalizedUrl}:${capturedProblem.name}`;
-    console.info("[CodeRevise capture page] Effect evaluated", {
-      captureKey,
-      alreadyExists,
-      hasProcessedKey: processedCaptureKeys.has(captureKey),
-      status
-    });
-
     if (processedCaptureKeys.has(captureKey)) {
       setStatus("saving");
       return;
     }
 
     processedCaptureKeys.add(captureKey);
-    console.info("[CodeRevise capture page] Calling captureProblem exactly once for key", { captureKey });
     captureProblem(capturedProblem);
     setStatus("saving");
   }, [alreadyExists, captureProblem, capturedProblem, cloudReady, navigate, normalizedUrl, status]);
@@ -58,9 +55,6 @@ export default function Capture() {
   useEffect(() => {
     if (status !== "saving" || !alreadyExists) return;
 
-    console.info("[CodeRevise capture page] Captured problem is visible in state. Redirecting to Problems.", {
-      normalizedUrl
-    });
     setStatus("saved");
     navigate("/problems", { replace: true });
   }, [alreadyExists, navigate, normalizedUrl, status]);

@@ -29,6 +29,11 @@ export function isPastOrToday(value) {
   return toDate(value).getTime() <= toDate(formatDate()).getTime();
 }
 
+export function isOverdue(value) {
+  if (!value) return false;
+  return toDate(value).getTime() < toDate(formatDate()).getTime();
+}
+
 export function daysBetween(a, b) {
   return Math.round((toDate(b).getTime() - toDate(a).getTime()) / DAY_MS);
 }

@@ -15,7 +15,7 @@ const blankProblem = {
 };
 
 const platforms = ["LeetCode", "Codeforces", "CodeChef", "GeeksForGeeks", "HackerRank", "Other"];
-const difficulties = ["Easy", "Medium", "Hard"];
+const difficulties = ["Easy", "Medium", "Hard", "Unknown"];
 
 export default function ProblemForm({ initialProblem, onSubmit, onClose }) {
   const [form, setForm] = useState(blankProblem);
@@ -32,8 +32,8 @@ export default function ProblemForm({ initialProblem, onSubmit, onClose }) {
       difficulty: initialProblem.difficulty,
       topic: initialProblem.topic,
       url: initialProblem.url,
-      description: initialProblem.description || initialProblem.revisionNotes?.approach || "",
-      notes: initialProblem.notes || initialProblem.revisionNotes?.comments || "",
+      description: initialProblem.description || "",
+      notes: initialProblem.notes || "",
       dateSolved: initialProblem.dateSolved,
       favorite: initialProblem.favorite
     });
@@ -57,7 +57,9 @@ export default function ProblemForm({ initialProblem, onSubmit, onClose }) {
       ...metadata,
       name: metadata.name || current.name,
       topic: metadata.topic || current.topic,
-      difficulty: metadata.difficulty || current.difficulty,
+      // "Unknown" means the difficulty genuinely could not be determined - keep
+      // whatever the user already had rather than overwriting it with a guess.
+      difficulty: metadata.difficulty && metadata.difficulty !== "Unknown" ? metadata.difficulty : current.difficulty,
       description: metadata.description || current.description
     }));
 
@@ -116,7 +118,7 @@ export default function ProblemForm({ initialProblem, onSubmit, onClose }) {
             <input name="url" value={form.url} onChange={updateField} placeholder="https://..." />
           </label>
           <div className="autoFillRow">
-            <button className="button secondary" type="button" onClick={autoFillFromUrl}>
+            <button className="button tertiary" type="button" onClick={autoFillFromUrl}>
               <Sparkles size={16} /> Auto-fill from URL
             </button>
             {autoFillMessage && <span>{autoFillMessage}</span>}
