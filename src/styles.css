@@ -3,31 +3,45 @@
   --bg: #f6f7fb;
   --surface: #ffffff;
   --surface-soft: #f0f3f8;
+  --surface-2: #ffffff;
   --text: #14171f;
   --muted: #667085;
   --line: #dfe4ed;
-  --brand: #2563eb;
-  --brand-strong: #1d4ed8;
+  /* Same hue family as the dark-mode accent, desaturated and kept at the original
+     lightness so text/icon contrast on white stays where it was (~4.6:1). The literal
+     #6C8FF5 suggestion is too light for AA text contrast on a white surface, so it's
+     reserved for dark mode where it reads correctly against near-black. */
+  --brand: #3d63de;
+  --brand-strong: #2f52c4;
   --green: #16a34a;
   --red: #dc2626;
   --orange: #ea580c;
   --purple: #7c3aed;
   --shadow: 0 18px 50px rgba(20, 23, 31, 0.08);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-sans);
 }
 
+/* Dark mode: a genuine near-black -> charcoal -> elevated luminance ramp rather than a
+   single flat "dark gray" surface, so cards/rows/menus separate through lightness
+   instead of relying on heavy shadows. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e1117;
-  --surface: #151a23;
-  --surface-soft: #1d2430;
-  --text: #eef2f8;
-  --muted: #9ca7b8;
-  --line: #293241;
-  --brand: #60a5fa;
-  --brand-strong: #93c5fd;
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  --bg: #0a0b0d;
+  --surface: #121419;
+  --surface-soft: #191c22;
+  --surface-2: #1e222a;
+  --text: #edf0f5;
+  --muted: #8992a3;
+  --line: #242932;
+  --brand: #6c8ff5;
+  --brand-strong: #7c9bff;
+  --green: #34c778;
+  --red: #f0555f;
+  --orange: #ef9752;
+  --purple: #a78bfa;
+  --shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -113,6 +127,19 @@ a {
   display: block;
 }
 
+/* Numeric readouts (streak days, stat totals, goal fractions, completion %) use the
+   monospace face with tabular figures - the one place a "technical" font earns its
+   keep here, since the app has no literal code content but does have a lot of glanceable
+   numbers that benefit from fixed-width digits. */
+.heroMetric strong,
+.statCard strong,
+.statStripItem strong,
+.goalMetricHeader strong,
+.radialProgressInner strong {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 .brand small,
 .muted,
 .pageHeader p,
@@ -126,27 +153,86 @@ a {
   color: var(--muted);
 }
 
+.navGroups {
+  display: grid;
+  gap: 18px;
+}
+
+.navGroupLabel {
+  display: block;
+  margin-bottom: 6px;
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
 .navList {
   display: grid;
-  gap: 8px;
+  gap: 3px;
 }
 
 .navItem {
+  position: relative;
   gap: 10px;
-  padding: 11px 12px;
-  border-radius: 10px;
+  padding: 10px 12px 10px 16px;
+  border-radius: 9px;
   color: var(--muted);
+  font-weight: 600;
   transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease;
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
 }
 
-.navItem:hover,
-.navItem.active {
+.navItem::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 999px;
+  background: var(--brand);
+  transform: translateY(-50%);
+  transition: height 0.18s ease;
+}
+
+.navItem svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.navItem:hover {
   background: var(--surface-soft);
   color: var(--text);
-  transform: translateX(2px);
+  transform: translateX(1px);
+}
+
+.navItem:hover svg {
+  transform: translateX(1px);
+}
+
+.navItem:active {
+  transform: translateX(1px) scale(0.98);
+}
+
+.navItem.active {
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface-soft));
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.navItem.active::before {
+  height: 16px;
+}
+
+.navItem.active svg {
+  opacity: 1;
 }
 
 .sidebarPanel {
@@ -187,7 +273,7 @@ a {
 }
 
 .topbarTitle {
-  font-weight: 850;
+  font-weight: 800;
 }
 
 .userBadge {
@@ -294,7 +380,7 @@ a {
   grid-template-columns: 1fr auto;
   gap: 24px;
   align-items: center;
-  padding: 34px;
+  padding: 26px 30px;
   border-radius: 22px;
   background:
     linear-gradient(135deg, rgba(37, 99, 235, 0.14), transparent 48%),
@@ -314,16 +400,25 @@ p {
 h1 {
   margin-bottom: 10px;
   font-size: clamp(2rem, 4vw, 3.7rem);
+  font-weight: 800;
   line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 h2 {
   margin-bottom: 8px;
   font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 h3 {
   margin-bottom: 14px;
+  font-weight: 600;
+}
+
+.heroBand h1 {
+  font-size: clamp(1.9rem, 3.2vw, 2.85rem);
 }
 
 .eyebrow {
@@ -336,6 +431,30 @@ h3 {
   text-transform: uppercase;
 }
 
+.heroStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.heroStat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.heroStat svg {
+  color: var(--brand);
+}
+
 .heroMetric {
   width: 150px;
   height: 150px;
@@ -343,8 +462,16 @@ h3 {
   display: grid;
   place-items: center;
   text-align: center;
-  background: var(--text);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--orange) 20%, var(--text)),
+    color-mix(in srgb, var(--red) 16%, var(--text))
+  );
   color: var(--surface);
+}
+
+.heroMetric svg {
+  color: color-mix(in srgb, var(--orange) 55%, white);
 }
 
 .heroMetric strong {
@@ -358,6 +485,101 @@ h3 {
 
 .three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.statStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 28px;
+  padding: 14px 4px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.statStripItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 0.87rem;
+}
+
+.statStripItem svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.statStripItem strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.focusBand {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.8fr);
+  gap: 22px;
+  padding: 20px 24px;
+  overflow: hidden;
+}
+
+.focusBand::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 2px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, var(--brand), transparent 75%);
+}
+
+.sessionCta {
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 0.95rem;
+}
+
+.focusMain {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  justify-content: center;
+  gap: 3px;
+}
+
+.focusMain h2 {
+  margin-bottom: 1px;
+  font-size: 1.15rem;
+}
+
+.focusMain p {
+  color: var(--muted);
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.focusGoals {
+  display: grid;
+  gap: 10px;
+  align-content: center;
+  padding-left: 22px;
+  border-left: 1px solid var(--line);
+}
+
+.focusGoals .goalMetric {
+  padding: 11px 12px;
+  gap: 6px;
+}
+
+.sectionDivider {
+  margin-top: 4px;
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .splitGrid,
@@ -384,8 +606,76 @@ h3 {
   padding: 20px;
 }
 
+.settingsPanel {
+  padding: 0;
+}
+
+.settingsSection {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 24px;
+  padding: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settingsSection:last-child {
+  border-bottom: 0;
+}
+
+.settingsSectionHead h2 {
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.settingsSectionHead p {
+  margin: 0;
+  max-width: 320px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.settingsSectionBody {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.settingsSectionBody.passwordForm,
+.settingsSectionBody.actionStack {
+  display: grid;
+  align-items: start;
+}
+
+.settingsValue {
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.dangerSection {
+  background: color-mix(in srgb, var(--red) 5%, transparent);
+}
+
+.dangerSection .settingsSectionHead h2 {
+  color: var(--red);
+}
+
 .statCard {
   animation: rise 0.35s ease both;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
 }
 
 .statTop {
@@ -439,6 +729,7 @@ h3 {
   height: 100%;
   border-radius: inherit;
   background: var(--brand);
+  transition: width 0.35s ease;
 }
 
 .pageHeader,
@@ -468,15 +759,23 @@ h3 {
   padding: 0 14px;
   border-radius: 10px;
   border: 1px solid transparent;
-  font-weight: 750;
+  font-weight: 700;
   transition:
-    transform 0.2s ease,
-    background 0.2s ease;
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
 }
 
 .button:hover,
 .iconButton:hover {
   transform: translateY(-1px);
+}
+
+.button:active,
+.iconButton:active {
+  transform: translateY(0) scale(0.97);
+  transition-duration: 0.1s;
 }
 
 .primary {
@@ -488,14 +787,50 @@ h3 {
   background: var(--brand-strong);
 }
 
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button:focus-visible,
+.iconButton:focus-visible,
+.linkButton:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 .secondary {
   border-color: var(--line);
   background: var(--surface);
 }
 
+.secondary:hover {
+  background: var(--surface-soft);
+  border-color: color-mix(in srgb, var(--brand) 25%, var(--line));
+}
+
+.tertiary {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.tertiary:hover {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
 .danger {
   background: var(--red);
   color: white;
+}
+
+.danger:hover {
+  background: color-mix(in srgb, var(--red) 88%, black);
 }
 
 .iconButton {
@@ -506,6 +841,11 @@ h3 {
   display: grid;
   place-items: center;
   background: var(--surface);
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
 }
 
 .favoriteOn {
@@ -540,8 +880,292 @@ h3 {
   padding: 0;
   margin-bottom: 8px;
   font-size: 1.08rem;
-  font-weight: 850;
+  font-weight: 800;
   text-align: left;
+}
+
+.listToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+}
+
+.sortControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.sortControl select {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.problemList {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.problemRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--line);
+  transition: background 0.15s ease;
+}
+
+.problemRow:last-child {
+  border-bottom: 0;
+}
+
+.problemRow:hover {
+  background: var(--surface-soft);
+}
+
+.problemRow.overdue {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.rowFavorite {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--line);
+  border: 1px solid transparent;
+  background: transparent;
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.rowFavorite:hover {
+  border-color: var(--line);
+  color: var(--muted);
+  transform: scale(1.08);
+}
+
+.rowFavorite:active {
+  transform: scale(0.92);
+}
+
+.rowFavorite.favoriteOn {
+  color: #eab308;
+}
+
+.rowFavorite.favoriteOn svg {
+  animation: favPop 0.2s ease;
+}
+
+.problemRowMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.problemRowTitle {
+  display: block;
+  padding: 0;
+  margin-bottom: 6px;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.problemRowTitle:hover {
+  color: var(--brand);
+}
+
+.problemRowTags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 4px;
+}
+
+.problemRowTags .difficulty {
+  padding: 2px 8px;
+  font-size: 0.73rem;
+}
+
+.rowMetaText {
+  color: var(--muted);
+  font-size: 0.79rem;
+  font-weight: 600;
+}
+
+.rowStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.79rem;
+  font-weight: 600;
+}
+
+.statusDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.rowStatus.learning {
+  color: var(--brand);
+}
+
+.rowStatus.reviewing {
+  color: var(--orange);
+}
+
+.rowStatus.mastered {
+  color: var(--green);
+}
+
+.rowStatus.practice {
+  color: var(--purple);
+}
+
+.rowStatus.archived {
+  color: var(--muted);
+}
+
+.problemRowDue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.79rem;
+  font-weight: 600;
+}
+
+.problemRowDue svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.problemRowDue.overdue {
+  color: var(--red);
+}
+
+.problemRowDue.overdue svg {
+  opacity: 1;
+}
+
+.problemRowActions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.problemRowActions .button {
+  min-height: 34px;
+  padding: 0 13px;
+  font-size: 0.85rem;
+}
+
+.rowIconAction {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.rowIconAction:hover {
+  background: var(--surface-soft);
+  color: var(--text);
+  border-color: var(--line);
+  transform: translateY(-1px);
+}
+
+.rowIconAction:active {
+  transform: translateY(0) scale(0.94);
+}
+
+.rowMenuWrap {
+  position: relative;
+  display: flex;
+}
+
+.rowMenuPanel {
+  position: fixed;
+  z-index: 25;
+  min-width: 200px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 1px;
+  animation: rise 0.12s ease both;
+}
+
+.rowMenuPanel.openUp {
+  animation: riseUp 0.12s ease both;
+}
+
+.rowMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.86rem;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.rowMenuItem:hover {
+  background: var(--surface-soft);
+}
+
+.rowMenuItem.danger:hover {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+}
+
+.rowMenuItem.danger {
+  color: var(--red);
 }
 
 .tagRow {
@@ -558,39 +1182,61 @@ h3 {
   background: var(--surface-soft);
   color: var(--muted);
   font-size: 0.78rem;
-  font-weight: 750;
+  font-weight: 700;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.countBadge.urgent {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 14%, var(--surface-soft));
 }
 
 .difficulty.easy {
   color: var(--green);
+  background: color-mix(in srgb, var(--green) 14%, var(--surface-soft));
 }
 
 .difficulty.medium {
   color: var(--orange);
+  background: color-mix(in srgb, var(--orange) 14%, var(--surface-soft));
 }
 
 .difficulty.hard {
   color: var(--red);
+  background: color-mix(in srgb, var(--red) 14%, var(--surface-soft));
+}
+
+.difficulty.unknown {
+  color: var(--muted);
 }
 
 .statusBadge.learning {
   color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 14%, var(--surface-soft));
 }
 
 .statusBadge.reviewing {
   color: var(--orange);
+  background: color-mix(in srgb, var(--orange) 14%, var(--surface-soft));
 }
 
 .statusBadge.mastered {
   color: var(--green);
+  background: color-mix(in srgb, var(--green) 14%, var(--surface-soft));
 }
 
 .statusBadge.practice {
   color: var(--purple);
+  background: color-mix(in srgb, var(--purple) 14%, var(--surface-soft));
 }
 
 .statusBadge.archived {
   color: var(--muted);
+}
+
+.overdueMeta {
+  color: var(--red);
+  font-weight: 700;
 }
 
 .todaySection {
@@ -659,6 +1305,11 @@ h3 {
   background: var(--surface-soft);
   display: grid;
   gap: 3px;
+  transition: background 0.15s ease;
+}
+
+.miniList > div:hover {
+  background: var(--surface-2);
 }
 
 .miniList span {
@@ -671,15 +1322,37 @@ h3 {
   gap: 14px;
 }
 
+.controlsCard .filterGrid {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
 .searchInput {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 46px;
+  min-height: 44px;
   padding: 0 13px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface-soft);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.searchInput:focus-within {
+  border-color: var(--brand);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent);
+}
+
+.searchInput svg {
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: color 0.18s ease;
+}
+
+.searchInput:focus-within svg {
+  color: var(--brand);
 }
 
 .searchInput input,
@@ -739,6 +1412,24 @@ h3 {
   padding: 10px 12px;
 }
 
+.filterGrid select {
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.filterGrid select:hover {
+  border-color: color-mix(in srgb, var(--brand) 25%, var(--line));
+}
+
+.filterGrid label.activeFilter {
+  color: var(--brand);
+}
+
+.filterGrid label.activeFilter select {
+  border-color: var(--brand);
+  color: var(--text);
+  background: color-mix(in srgb, var(--brand) 6%, var(--surface));
+}
+
 .toggleRow {
   display: flex;
   flex-wrap: wrap;
@@ -750,6 +1441,24 @@ h3 {
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.toggleRow label:hover {
+  color: var(--text);
+}
+
+.toggleRow label.activeFilter {
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.toggleRow input[type="checkbox"],
+.checkRow input[type="checkbox"] {
+  accent-color: var(--brand);
 }
 
 .autoFillRow {
@@ -779,7 +1488,7 @@ h3 {
   height: 100%;
   padding: 24px;
   overflow-y: auto;
-  background: var(--surface);
+  background: var(--surface-2);
   animation: slideIn 0.25s ease both;
 }
 
@@ -834,7 +1543,7 @@ h3 {
   width: min(420px, calc(100% - 32px));
   padding: 24px;
   border-radius: 16px;
-  background: var(--surface);
+  background: var(--surface-2);
   box-shadow: var(--shadow);
   text-align: center;
 }
@@ -842,6 +1551,67 @@ h3 {
 .notesDialog {
   width: min(620px, calc(100% - 32px));
   text-align: left;
+}
+
+.sessionDialog {
+  max-height: min(680px, calc(100vh - 48px));
+  overflow-y: auto;
+}
+
+.sessionProgress {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sessionProgressTrack {
+  width: 160px;
+  max-width: 100%;
+  height: 5px;
+  margin: 7px 0 0;
+}
+
+.sessionSubject {
+  margin-top: 18px;
+  margin-bottom: 4px;
+}
+
+.sessionSubject h2 {
+  margin-bottom: 3px;
+}
+
+.sessionSubject p {
+  margin: 0;
+}
+
+.sessionDialog.sessionDone {
+  text-align: center;
+}
+
+.sessionDoneBody {
+  justify-items: center;
+  padding-top: 6px;
+}
+
+.sessionDoneBody h2 {
+  margin-bottom: 2px;
+}
+
+.sessionDoneBody .muted {
+  margin-bottom: 2px;
+}
+
+.sessionNextReview {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.sessionDoneActions {
+  justify-content: center;
+  margin-top: 10px;
 }
 
 .notesSections {
@@ -884,6 +1654,7 @@ h3 {
 }
 
 .ratingButton {
+  position: relative;
   display: grid;
   gap: 4px;
   padding: 12px 8px;
@@ -892,6 +1663,20 @@ h3 {
   background: var(--surface);
   color: var(--text);
   text-align: center;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.ratingButton:hover {
+  transform: translateY(-1px);
+  background: var(--surface-soft);
+}
+
+.ratingButton:active {
+  transform: translateY(0) scale(0.96);
 }
 
 .ratingButton span {
@@ -901,7 +1686,18 @@ h3 {
 
 .ratingButton.selected {
   border-color: currentColor;
-  box-shadow: inset 0 0 0 1px currentColor;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+  background: color-mix(in srgb, currentColor 10%, var(--surface));
+  transform: translateY(-1px);
+}
+
+.ratingButton.selected::after {
+  content: "✓";
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
 }
 
 .ratingButton.forgot {
@@ -929,6 +1725,17 @@ h3 {
   place-items: center;
   background: color-mix(in srgb, var(--red) 12%, transparent);
   color: var(--red);
+  animation: rise 0.2s ease both;
+}
+
+.dialogIcon.success {
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+  color: var(--green);
+}
+
+.dialogIcon.trophy {
+  background: color-mix(in srgb, var(--orange) 14%, transparent);
+  color: var(--orange);
 }
 
 .dialogActions {
@@ -937,21 +1744,194 @@ h3 {
 }
 
 .emptyState {
-  padding: 44px 24px;
-  border: 1px dashed var(--line);
-  border-radius: 14px;
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
   color: var(--muted);
 }
 
+.emptyIcon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.emptyStateBody {
+  flex: 1;
+  min-width: 160px;
+}
+
 .emptyState h3 {
-  margin-top: 12px;
+  margin: 0;
+  font-size: 0.94rem;
   color: var(--text);
+}
+
+.emptyState p {
+  margin: 2px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.emptyStateAction {
+  flex-shrink: 0;
+}
+
+.goalsCard {
+  padding: 22px;
+  display: grid;
+  gap: 16px;
+}
+
+.goalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.goalMetric {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  display: grid;
+  gap: 8px;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.goalMetric.goalComplete {
+  border-color: color-mix(in srgb, var(--green) 40%, var(--line));
+  background: color-mix(in srgb, var(--green) 8%, var(--surface-soft));
+}
+
+.goalMetricHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.goalMetricLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.goalMetricLabel svg {
+  color: var(--muted);
+}
+
+.goalMetricHeader strong {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.goalCompleteTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--green);
+  font-weight: 700;
+}
+
+.goalTrack {
+  margin: 0;
+}
+
+.goalTrack.blue span {
+  background: var(--brand);
+}
+
+.goalTrack.green span {
+  background: var(--green);
+}
+
+.goalMetricFoot {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.goalWeeklyRow {
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.progressSummary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.progressSummary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.radialProgress {
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--brand) calc(var(--pct, 0) * 1%), var(--surface-soft) 0);
+  transition: background 0.35s ease;
+}
+
+.radialProgressInner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+}
+
+.radialProgressInner strong {
+  font-size: 1.05rem;
+}
+
+.chartCard {
+  transition: box-shadow 0.2s ease;
+}
+
+.chartCard:hover {
+  box-shadow: var(--shadow);
 }
 
 .chartRows {
   display: grid;
   gap: 14px;
+}
+
+.chartRow {
+  padding: 6px;
+  margin: -6px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.chartRow:hover {
+  background: var(--surface-soft);
 }
 
 .chartMeta {
@@ -969,6 +1949,13 @@ h3 {
   margin-bottom: 18px;
 }
 
+.calendarHeader h2 {
+  margin-bottom: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
 .weekGrid,
 .monthGrid {
   display: grid;
@@ -984,18 +1971,61 @@ h3 {
 }
 
 .calendarDay {
-  min-height: 88px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 68px;
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
   color: var(--text);
   text-align: left;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 
-.calendarDay:hover,
-.selectedDay {
-  border-color: var(--brand);
+.calendarDay[data-intensity="1"] {
+  background: color-mix(in srgb, var(--green) 7%, transparent);
+}
+
+.calendarDay[data-intensity="2"] {
+  background: color-mix(in srgb, var(--green) 13%, transparent);
+}
+
+.calendarDay[data-intensity="3"] {
+  background: color-mix(in srgb, var(--green) 20%, transparent);
+}
+
+.calendarDay:hover {
+  background: var(--surface-soft);
+  transform: translateY(-1px);
+}
+
+.calendarDay:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.calendarDay.selectedDay {
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface-soft));
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
+}
+
+.dayNumber {
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.calendarDay.todayDay {
+  box-shadow: inset 0 0 0 1.5px var(--brand);
+}
+
+.calendarDay.todayDay .dayNumber {
+  color: var(--brand);
+  font-weight: 800;
 }
 
 .captureCard {
@@ -1038,7 +2068,7 @@ h3 {
 .captureDetails span {
   color: var(--muted);
   font-size: 0.8rem;
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .errorText svg {
@@ -1046,23 +2076,61 @@ h3 {
 }
 
 .mutedDay {
-  opacity: 0.45;
-}
-
-.todayDay {
-  box-shadow: inset 0 0 0 2px var(--brand);
+  opacity: 0.4;
 }
 
 .dayDots {
   display: flex;
-  gap: 5px;
-  margin-top: 28px;
+  gap: 4px;
 }
 
 .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.calendarDay:hover .dot {
+  transform: scale(1.2);
+}
+
+.calendarLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.calendarLegend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendRing {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--brand);
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--green) 20%, transparent);
+}
+
+.dateEntryStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .redDot {
@@ -1095,6 +2163,11 @@ h3 {
   border-radius: 9px;
   background: transparent;
   color: var(--muted);
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.segmented button:hover:not(.selected) {
+  color: var(--text);
 }
 
 .segmented .selected {
@@ -1120,7 +2193,7 @@ h3 {
   padding: 13px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--surface);
+  background: var(--surface-2);
   box-shadow: var(--shadow);
   animation: rise 0.25s ease both;
 }
@@ -1197,6 +2270,17 @@ h3 {
   }
 }
 
+@keyframes riseUp {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes slideIn {
   from {
     transform: translateX(24px);
@@ -1209,6 +2293,18 @@ h3 {
 @keyframes shimmer {
   to {
     background-position: -200% 0;
+  }
+}
+
+@keyframes favPop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
@@ -1234,8 +2330,23 @@ h3 {
   .splitGrid,
   .settingsGrid,
   .calendarLayout,
-  .captureDetails {
+  .captureDetails,
+  .chartGrid {
     grid-template-columns: 1fr;
+  }
+
+  .focusBand {
+    grid-template-columns: 1fr;
+  }
+
+  .focusGoals {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .settingsSection {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .userBadge {
@@ -1264,7 +2375,8 @@ h3 {
   .filterGrid,
   .formGrid,
   .miniFieldGrid,
-  .userSwitch {
+  .userSwitch,
+  .goalGrid {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
@@ -1274,11 +2386,41 @@ h3 {
   }
 
   .calendarDay {
-    min-height: 62px;
-    padding: 7px;
+    min-height: 54px;
+    padding: 6px;
   }
 
-  .dayDots {
-    margin-top: 14px;
+  .progressSummary {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .problemRow {
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+
+  .problemRowMain {
+    flex-basis: calc(100% - 48px);
+  }
+
+  .problemRowActions {
+    flex-basis: 100%;
+    margin-top: 10px;
+  }
+
+  .problemRowActions .button {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

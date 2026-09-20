@@ -1,5 +1,6 @@
 import { BarChart3, CheckCircle2, Flame, Repeat2, Target, Trophy } from "lucide-react";
 import ChartBar from "../components/ChartBar";
+import EmptyState from "../components/EmptyState";
 import StatCard from "../components/StatCard";
 import { useApp } from "../context/AppContext";
 import {
@@ -41,17 +42,36 @@ export default function Analytics() {
         <StatCard label="Total solved" value={active.length} detail="Active problems in the planner" icon={Trophy} tone="green" />
         <StatCard label="Total revisions" value={revisions} detail="Completed revision sessions" icon={Repeat2} tone="blue" />
         <StatCard label="Completion rate" value={`${completion}%`} detail="Problems through all stages" icon={CheckCircle2} tone="purple" progress={completion} />
-        <StatCard label="Current streak" value={streak.current} detail={`Best streak: ${streak.best} days`} icon={Flame} tone="orange" />
-        <StatCard label="Weakest topic" value={getWeakestTopic(problems)} detail="Topic needing the most attention" icon={Target} tone="red" />
-        <StatCard label="Most practiced" value={getMostPracticedTopic(problems)} detail="Highest revision history volume" icon={BarChart3} />
       </div>
 
-      <div className="splitGrid">
+      <div className="statStrip">
+        <div className="statStripItem">
+          <Flame size={16} />
+          <span>
+            <strong>{streak.current}</strong> day streak <span className="muted">· best {streak.best}</span>
+          </span>
+        </div>
+        <div className="statStripItem">
+          <Target size={16} />
+          <span>
+            Weakest topic <strong>{getWeakestTopic(problems)}</strong>
+          </span>
+        </div>
+        <div className="statStripItem">
+          <BarChart3 size={16} />
+          <span>
+            Most practiced <strong>{getMostPracticedTopic(problems)}</strong>
+          </span>
+        </div>
+      </div>
+
+      <div className="sectionDivider">
+        <span className="eyebrow">Distributions</span>
+      </div>
+
+      <div className="chartGrid">
         <ChartBar title="Topic distribution" data={topicDistribution} />
         <ChartBar title="Difficulty distribution" data={difficultyDistribution} />
-      </div>
-
-      <div className="splitGrid">
         <ChartBar title="Recall quality" data={ratingDistribution} />
         <ChartBar title="Problem status" data={statusDistribution} />
       </div>
@@ -77,7 +97,7 @@ export default function Analytics() {
             ))}
           </div>
         ) : (
-          <p className="muted">Add problems to see topic-level performance.</p>
+          <EmptyState title="Not enough data yet." description="Revise a few problems to see topic-level performance here." />
         )}
       </section>
     </div>

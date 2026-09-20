@@ -35,7 +35,7 @@ export function getStatusDistribution(problems) {
   }, {});
 }
 
-function realRevisionEntries(problem) {
+export function realRevisionEntries(problem) {
   return (problem.revisionHistory || []).filter((entry) => !entry.scheduled && !entry.practice);
 }
 
@@ -125,10 +125,14 @@ export function getWeakestTopic(problems) {
 
 export function getMostPracticedTopic(problems) {
   const totals = {};
-  problems.forEach((problem) => {
-    totals[problem.topic] = (totals[problem.topic] || 0) + (problem.revisionHistory?.length || 0);
+  getActiveProblems(problems).forEach((problem) => {
+    const topic = problem.topic || "Uncategorized";
+    const activityCount = (problem.revisionHistory || []).filter((entry) => !entry.scheduled).length;
+    totals[topic] = (totals[topic] || 0) + activityCount;
   });
-  return Object.entries(totals).sort((a, b) => b[1] - a[1])[0]?.[0] || "Start revising";
+
+  const top = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+  return top && top[1] > 0 ? top[0] : "No practice data yet";
 }
 
 export function calculateStreak(problems) {

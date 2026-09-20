@@ -6,7 +6,7 @@ import { dedupeProblemsByUrl } from "../utils/problemIdentity";
 export function useCloudSync(notify) {
   const [cloudUser, setCloudUser] = useState(null);
   const [cloudProblems, setCloudProblems] = useState([]);
-  const [cloudSettings, setCloudSettings] = useState({ searchHistory: [], recentlyViewed: [], theme: null });
+  const [cloudSettings, setCloudSettings] = useState({ searchHistory: [], recentlyViewed: [], theme: null, goals: null });
   const [authLoading, setAuthLoading] = useState(isFirebaseConfigured);
   const [cloudReady, setCloudReady] = useState(!isFirebaseConfigured);
   const migrationRanForUid = useRef(null);
@@ -20,7 +20,7 @@ export function useCloudSync(notify) {
       if (!user) {
         setCloudReady(true);
         setCloudProblems([]);
-        setCloudSettings({ searchHistory: [], recentlyViewed: [], theme: null });
+        setCloudSettings({ searchHistory: [], recentlyViewed: [], theme: null, goals: null });
       }
     });
   }, []);
@@ -54,7 +54,8 @@ export function useCloudSync(notify) {
         setCloudSettings({
           searchHistory: data.searchHistory || [],
           recentlyViewed: data.recentlyViewed || [],
-          theme: data.theme || null
+          theme: data.theme || null,
+          goals: data.goals || null
         });
         settingsReady = true;
         markReadyIfLoaded();
