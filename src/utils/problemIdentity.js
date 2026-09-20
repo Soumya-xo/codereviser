@@ -38,10 +38,6 @@ export function upsertProblemByUrl(problems, incomingProblem) {
       return [...acc, mergeProblemByUrl(problem, incomingProblem)];
     }
 
-    console.info("[CodeRevise capture] Removed duplicate problem during URL upsert", {
-      duplicateId: problem.id,
-      url: problem.url
-    });
     return acc;
   }, []);
 
@@ -61,11 +57,6 @@ export function dedupeProblemsByUrl(problems) {
 
     const next = [...acc];
     next[existingIndex] = mergeProblemByUrl(next[existingIndex], problem);
-    console.info("[CodeRevise sync] Deduped problem before persistence", {
-      keptId: next[existingIndex].id,
-      removedId: problem.id,
-      url: problem.url
-    });
     return next;
   }, []);
 }

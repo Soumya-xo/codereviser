@@ -1,4 +1,5 @@
 import { BookmarkCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
 import ProblemCard from "../components/ProblemCard";
 import { useApp } from "../context/AppContext";
@@ -21,15 +22,20 @@ export default function FuturePractice() {
       </div>
 
       {futureProblems.length ? (
-        <div className="problemGrid">
+        <div className="problemList">
           {futureProblems.map((problem) => (
-            <ProblemCard key={problem.id} problem={problem} futureMode />
+            <ProblemCard key={problem.id} problem={problem} layout="row" futureMode />
           ))}
         </div>
       ) : (
         <EmptyState
-          title="No future practice problems"
-          description="Use the bookmark button on any problem card to save it here without setting a revision date."
+          title="Nothing saved yet."
+          description="Bookmark a problem to practice it later without a revision date."
+          action={
+            <Link className="button secondary" to="/problems">
+              Browse problems
+            </Link>
+          }
         />
       )}
     </div>

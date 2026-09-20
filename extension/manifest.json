@@ -3,7 +3,7 @@
   "name": "CodeRevise Capture",
   "version": "1.0.0",
   "description": "Capture coding problem pages into CodeRevise in one click.",
-  "permissions": ["tabs", "windows"],
+  "permissions": ["tabs", "windows", "activeTab", "scripting"],
   "action": {
     "default_title": "Capture to CodeRevise",
     "default_popup": "popup.html"

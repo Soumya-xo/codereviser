@@ -1,6 +1,8 @@
-import { Activity, CalendarClock, Flame, Gauge, Target, Trophy } from "lucide-react";
+import { ArrowRight, CalendarClock, Flame, Gauge, PlayCircle, Repeat2, Target, TrendingUp, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
+import GoalProgressRow from "../components/GoalProgressRow";
 import ProblemCard from "../components/ProblemCard";
 import SkeletonGrid from "../components/Skeleton";
 import StatCard from "../components/StatCard";
@@ -14,9 +16,10 @@ import {
   getWeakestTopic
 } from "../utils/analytics";
 import { humanDate } from "../utils/date";
+import { getDailyProgress } from "../utils/goals";
 
 export default function Dashboard() {
-  const { problems, recentlyViewed } = useApp();
+  const { problems, recentlyViewed, goals } = useApp();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +32,8 @@ export default function Dashboard() {
   const completion = getCompletionRate(problems);
   const streak = calculateStreak(problems);
   const weakestTopic = getWeakestTopic(problems);
+  const daily = getDailyProgress(problems, goals);
+  const todayGoalPercentage = Math.round((daily.solve.percentage + daily.revise.percentage) / 2);
   const recent = recentlyViewed.map((id) => problems.find((problem) => problem.id === id)).filter(Boolean);
   const upcoming = active
     .filter((problem) => !problem.practiceLater && problem.nextRevisionDate && !problem.completed)
@@ -42,6 +47,14 @@ export default function Dashboard() {
           <span className="eyebrow">Welcome back</span>
           <h1>Revise smarter, remember longer.</h1>
           <p>CodeRevise keeps your solved problems moving through a focused spaced-repetition queue.</p>
+          <div className="heroStats">
+            <span className="heroStat">
+              <CalendarClock size={15} /> {due.length} due today
+            </span>
+            <span className="heroStat">
+              <TrendingUp size={15} /> {todayGoalPercentage}% of today&apos;s goals
+            </span>
+          </div>
         </div>
         <div className="heroMetric">
           <Flame size={24} />
@@ -50,16 +63,28 @@ export default function Dashboard() {
         </div>
       </section>
 
+      <section className="card focusBand">
+        <div className="focusMain">
+          <span className="eyebrow">Today&apos;s focus</span>
+          <h2>{due.length ? `${due.length} revision${due.length === 1 ? "" : "s"} due` : "You're all caught up"}</h2>
+          <p>{due.length ? "Clear the queue while it's still fresh in mind." : "No revisions waiting - great time to solve something new."}</p>
+          <Link className="button primary sessionCta" to="/today">
+            <PlayCircle size={16} /> Start Today&apos;s Session <ArrowRight size={15} />
+          </Link>
+        </div>
+        <div className="focusGoals">
+          <GoalProgressRow label="Solve" metric={daily.solve} tone="blue" icon={Target} />
+          <GoalProgressRow label="Revise" metric={daily.revise} tone="green" icon={Repeat2} />
+        </div>
+      </section>
+
       {loading ? (
         <SkeletonGrid />
       ) : (
         <div className="grid three">
-          <StatCard label="Today's revisions" value={due.length} detail="Problems waiting in the queue" icon={CalendarClock} tone="red" />
           <StatCard label="Problems solved" value={active.length} detail={`${getRevisionCount(problems)} revisions logged`} icon={Trophy} tone="green" />
           <StatCard label="Completion" value={`${completion}%`} detail="Finished all five revision stages" icon={Gauge} tone="blue" progress={completion} />
-          <StatCard label="Current streak" value={streak.current} detail={`Best streak: ${streak.best} days`} icon={Flame} tone="orange" />
           <StatCard label="Weakest topic" value={weakestTopic} detail="Based on due and hard problems" icon={Target} tone="purple" />
-          <StatCard label="Revision health" value={due.length ? "Action needed" : "Clear"} detail="Keep today tidy for compounding memory" icon={Activity} />
         </div>
       )}
 
@@ -86,7 +111,15 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <EmptyState title="No upcoming work" description="Add problems to begin building your revision runway." />
+            <EmptyState
+              title="Nothing scheduled."
+              description="Add a solved problem to start your revision queue."
+              action={
+                <Link className="button secondary" to="/problems">
+                  Add a problem
+                </Link>
+              }
+            />
           )}
         </section>
 
@@ -106,8 +139,10 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : due.length ? (
             due.slice(0, 2).map((problem) => <ProblemCard key={problem.id} problem={problem} compact />)
+          ) : (
+            <EmptyState title="Nothing viewed yet." description="Problems you open will show up here." />
           )}
         </section>
       </div>

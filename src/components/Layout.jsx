@@ -17,14 +17,30 @@ import { useApp } from "../context/AppContext";
 import brandStyles from "./BrandMark.module.css";
 import Toast from "./Toast";
 
-const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/problems", label: "Problems", icon: ListTodo },
-  { to: "/today", label: "Today", icon: CheckCircle2 },
-  { to: "/future", label: "Future Practice", icon: BookmarkCheck },
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/calendar", label: "Calendar", icon: CalendarDays },
-  { to: "/settings", label: "Settings", icon: Settings }
+const navGroups = [
+  {
+    label: "Plan",
+    items: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/today", label: "Today", icon: CheckCircle2 },
+      { to: "/calendar", label: "Calendar", icon: CalendarDays }
+    ]
+  },
+  {
+    label: "Practice",
+    items: [
+      { to: "/problems", label: "Problems", icon: ListTodo },
+      { to: "/future", label: "Future Practice", icon: BookmarkCheck }
+    ]
+  },
+  {
+    label: "Insights",
+    items: [{ to: "/analytics", label: "Analytics", icon: BarChart3 }]
+  },
+  {
+    label: "System",
+    items: [{ to: "/settings", label: "Settings", icon: Settings }]
+  }
 ];
 
 export default function Layout() {
@@ -45,17 +61,24 @@ export default function Layout() {
           </div>
         </div>
 
-        <nav className="navList" aria-label="Primary navigation">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => `navItem ${isActive ? "active" : ""}`}
-              onClick={() => setOpen(false)}
-            >
-              <item.icon size={18} />
-              <span>{item.label}</span>
-            </NavLink>
+        <nav className="navGroups" aria-label="Primary navigation">
+          {navGroups.map((group) => (
+            <div className="navGroup" key={group.label}>
+              <span className="navGroupLabel">{group.label}</span>
+              <div className="navList">
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) => `navItem ${isActive ? "active" : ""}`}
+                    onClick={() => setOpen(false)}
+                  >
+                    <item.icon size={18} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 

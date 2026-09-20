@@ -71,20 +71,26 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="settingsGrid">
-        <section className="card settingsCard">
-          <span className="eyebrow">Account</span>
-          <h2>{activeUserId}</h2>
-          <p>This account has its own problems, revision queue, calendar, and analytics.</p>
-          <button className="button secondary" type="button" onClick={logout}>
-            <LogOut size={16} /> Logout
-          </button>
-        </section>
+      <section className="card settingsPanel">
+        <div className="settingsSection">
+          <div className="settingsSectionHead">
+            <h2>Account</h2>
+            <p>This account has its own problems, revision queue, calendar, and analytics.</p>
+          </div>
+          <div className="settingsSectionBody">
+            <span className="settingsValue">{activeUserId}</span>
+            <button className="button secondary" type="button" onClick={logout}>
+              <LogOut size={16} /> Logout
+            </button>
+          </div>
+        </div>
 
-        <section className="card settingsCard">
-          <span className="eyebrow">Profile</span>
-          <h2>Change email / user ID</h2>
-          <form className="passwordForm" onSubmit={handleUserIdChange}>
+        <div className="settingsSection">
+          <div className="settingsSectionHead">
+            <h2>Profile</h2>
+            <p>Change the email or user ID you sign in with.</p>
+          </div>
+          <form className="settingsSectionBody passwordForm" onSubmit={handleUserIdChange}>
             <input value={nextUserId} onChange={(event) => setNextUserId(event.target.value)} placeholder="New email or user ID" />
             <input
               value={renamePassword}
@@ -97,12 +103,14 @@ export default function Settings() {
               Update user ID
             </button>
           </form>
-        </section>
+        </div>
 
-        <section className="card settingsCard">
-          <span className="eyebrow">Security</span>
-          <h2>Password</h2>
-          <form className="passwordForm" onSubmit={handlePasswordChange}>
+        <div className="settingsSection">
+          <div className="settingsSectionHead">
+            <h2>Security</h2>
+            <p>Update your password to keep this account protected.</p>
+          </div>
+          <form className="settingsSectionBody passwordForm" onSubmit={handlePasswordChange}>
             <input
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
@@ -120,25 +128,31 @@ export default function Settings() {
               <KeyRound size={16} /> Update password
             </button>
           </form>
-        </section>
+        </div>
 
-        <section className="card settingsCard">
-          <span className="eyebrow">Appearance</span>
-          <h2>Theme</h2>
-          <div className="segmented">
-            <button className={theme === "light" ? "selected" : ""} type="button" onClick={() => setTheme("light")}>
-              <Sun size={17} /> Light
-            </button>
-            <button className={theme === "dark" ? "selected" : ""} type="button" onClick={() => setTheme("dark")}>
-              <Moon size={17} /> Dark
-            </button>
+        <div className="settingsSection">
+          <div className="settingsSectionHead">
+            <h2>Appearance</h2>
+            <p>Switch between a light or dark workspace.</p>
           </div>
-        </section>
+          <div className="settingsSectionBody">
+            <div className="segmented">
+              <button className={theme === "light" ? "selected" : ""} type="button" onClick={() => setTheme("light")}>
+                <Sun size={17} /> Light
+              </button>
+              <button className={theme === "dark" ? "selected" : ""} type="button" onClick={() => setTheme("dark")}>
+                <Moon size={17} /> Dark
+              </button>
+            </div>
+          </div>
+        </div>
 
-        <section className="card settingsCard">
-          <span className="eyebrow">Data</span>
-          <h2>Backup and restore</h2>
-          <div className="actionStack">
+        <div className="settingsSection">
+          <div className="settingsSectionHead">
+            <h2>Data</h2>
+            <p>Back up your planner or restore it from a previous export.</p>
+          </div>
+          <div className="settingsSectionBody actionStack">
             <button className="button secondary" type="button" onClick={exportJson}>
               <Download size={16} /> Export JSON
             </button>
@@ -147,17 +161,20 @@ export default function Settings() {
             </button>
             <input ref={fileInput} className="hiddenInput" type="file" accept="application/json" onChange={handleImport} />
           </div>
-        </section>
+        </div>
 
-        <section className="card settingsCard dangerZone">
-          <span className="eyebrow">Reset</span>
-          <h2>Reset data</h2>
-          <p>This clears only the current user&apos;s problems, revisions, search history, and recent activity.</p>
-          <button className="button danger" type="button" onClick={() => window.confirm("Reset current user data?") && resetData()}>
-            <RotateCcw size={16} /> Reset Data
-          </button>
-        </section>
-      </div>
+        <div className="settingsSection dangerSection">
+          <div className="settingsSectionHead">
+            <h2>Danger zone</h2>
+            <p>Clears only this user&apos;s problems, revisions, search history, and recent activity.</p>
+          </div>
+          <div className="settingsSectionBody">
+            <button className="button danger" type="button" onClick={() => window.confirm("Reset current user data?") && resetData()}>
+              <RotateCcw size={16} /> Reset data
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

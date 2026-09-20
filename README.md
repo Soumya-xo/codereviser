@@ -5,8 +5,10 @@ CodeRevise is a modern React application for programmers who want to retain codi
 ## Features
 
 - Dashboard with streak, due revisions, solved count, completion percentage, weakest topic, upcoming revisions, and recent activity
-- Full problem management: add, edit, delete, favorite, archive, and complete revision stages
-- Spaced repetition schedule: 1 day, 3 days, 7 days, 15 days, and 30 days
+- Full problem management: add, edit, delete, favorite, archive, and revise
+- Adaptive, recall-based spaced repetition: rate each revision Forgot / Hard / Good / Easy and the next date is scheduled accordingly
+- Guided revision sessions: open the original problem, attempt it, rate your recall, then record approach/mistake/key-insight notes
+- Full revision history per problem, including the rating and notes recorded at each attempt
 - Search by problem name with recent search history
 - Filters for topic, difficulty, platform, favorites, due revisions, and completed problems
 - Today's revision page with quick actions and original problem links
@@ -56,18 +58,17 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 VITE_FIREBASE_APP_ID=your-app-id
 ```
 
-Recommended Firestore rule shape:
+6. Deploy the Firestore security rules checked into this repo at [`firestore.rules`](firestore.rules):
 
-```js
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
+```bash
+firebase deploy --only firestore:rules
 ```
+
+Each user's data is isolated under `users/{userId}`, `users/{userId}/problems/{problemId}`, and
+`users/{userId}/problems/{problemId}/revisions/{revisionId}`, scoped to `request.auth.uid == userId`. If you
+previously ran an earlier version of CodeRevise, the app automatically migrates any legacy single-document
+`users/{userId}.problems` array into the `problems` subcollection the first time each user signs in — the legacy
+document is left in place (not deleted) as a safety net.
 
 If Firebase keys are missing, the app still works using Local Storage only.
 
@@ -110,19 +111,29 @@ src/
 - Lucide React icons
 - Vite
 
-## Spaced Repetition Logic
+## Adaptive Revision Logic
 
-When a problem is added, CodeRevise schedules the first revision one day after the solved date. Each completed revision advances the stage and calculates the next due date using this sequence:
+When a problem is added, CodeRevise schedules the first revision one day after the solved date
+(`src/utils/revision.js`). From there, every revision is a guided session:
+
+1. Open the original problem and attempt it without looking at previous notes.
+2. Return to CodeRevise and rate your recall: **Forgot**, **Hard**, **Good**, or **Easy**.
+3. Record approach, mistake, and key-insight notes for next time.
+
+The next revision date is scheduled from the rating:
 
 ```text
-Revision 1: +1 day
-Revision 2: +3 days
-Revision 3: +7 days
-Revision 4: +15 days
-Revision 5: +30 days
+Forgot → +1 day
+Hard   → +2 days
+Good   → +5 days
+Easy   → +10 days
 ```
 
-After the fifth revision, the problem is marked completed.
+The scheduling algorithm is isolated in `src/utils/revision.js` so it can be swapped for a more advanced
+algorithm (e.g. one that also factors in the previous interval) without touching the UI. After 5 completed
+revisions a problem is flagged `completed`, the same mastery milestone the app used before: it graduates out
+of Today's queue and counts toward the Analytics/Dashboard completion-rate stat. It can still be found and
+manually revised again from the Problems page.
 
 ## Future Improvements
 

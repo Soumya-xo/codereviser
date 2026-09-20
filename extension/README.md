@@ -2,6 +2,8 @@
 
 This Chrome extension captures the active tab and sends it to CodeRevise on `/capture` with the page URL and title. If CodeRevise is already open, the extension reuses that tab. If it is not open, it creates one.
 
+On LeetCode problem pages, it also reads the real difficulty (Easy/Medium/Hard) directly from the page before sending it to CodeRevise, instead of relying only on a small hardcoded list of known problems. This requires the `activeTab` and `scripting` permissions, which only ever apply to the tab you click "Capture" on - the extension has no standing access to any page and cannot read pages in the background. If the difficulty can't be reliably read off the page, it is sent as `Unknown` rather than guessed. Other platforms (GeeksForGeeks, Codeforces, CodeChef, HackerRank) are unaffected by this and continue to work as before.
+
 ## Local Setup
 
 1. Start CodeRevise:
