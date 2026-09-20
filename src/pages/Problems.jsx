@@ -5,6 +5,7 @@ import EmptyState from "../components/EmptyState";
 import ProblemCard from "../components/ProblemCard";
 import ProblemForm from "../components/ProblemForm";
 import { useApp } from "../context/AppContext";
+import { getProblemStatus, STATUS_LABELS } from "../utils/analytics";
 import { isPastOrToday } from "../utils/date";
 
 const all = "All";
@@ -19,6 +20,7 @@ export default function Problems() {
     topic: all,
     difficulty: all,
     platform: all,
+    status: all,
     favorites: false,
     due: false,
     completed: false,
@@ -39,6 +41,7 @@ export default function Problems() {
       .filter((problem) => filters.topic === all || problem.topic === filters.topic)
       .filter((problem) => filters.difficulty === all || problem.difficulty === filters.difficulty)
       .filter((problem) => filters.platform === all || problem.platform === filters.platform)
+      .filter((problem) => filters.status === all || getProblemStatus(problem) === filters.status)
       .filter((problem) => !filters.favorites || problem.favorite)
       .filter((problem) => !filters.due || isPastOrToday(problem.nextRevisionDate))
       .filter((problem) => !filters.completed || problem.completed);
@@ -98,6 +101,17 @@ export default function Problems() {
             <select value={filters.platform} onChange={(event) => setFilters({ ...filters, platform: event.target.value })}>
               {platforms.map((platform) => (
                 <option key={platform}>{platform}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Status
+            <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
+              <option value={all}>{all}</option>
+              {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
               ))}
             </select>
           </label>

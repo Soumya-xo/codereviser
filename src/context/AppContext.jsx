@@ -1,26 +1,41 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { sampleProblems } from "../data/sampleProblems";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import {
+  arrayUnion,
   auth,
   createUserWithEmailAndPassword,
-  db,
-  doc,
   EmailAuthProvider,
-  getDoc,
   isFirebaseConfigured,
   onAuthStateChanged,
-  onSnapshot,
   reauthenticateWithCredential,
-  setDoc,
   signInWithEmailAndPassword,
   signOut,
   updateEmail,
   updatePassword
 } from "../services/firebase";
+import {
+  commitRevision,
+  createProblemDoc,
+  deleteProblemDoc,
+  migrateLegacyUserDocIfNeeded,
+  saveUserSettings,
+  subscribeToProblems,
+  subscribeToUserSettings,
+  updateProblemDoc
+} from "../services/firestore";
 import { formatDate } from "../utils/date";
-import { dedupeProblemsByUrl, normalizeProblemUrl, upsertProblemByUrl } from "../utils/problemIdentity";
-import { buildScheduledHistory, getInitialRevisionDate, getNextRevisionDate } from "../utils/revision";
+import { dedupeProblemsByUrl, mergeProblemByUrl, normalizeProblemUrl, upsertProblemByUrl } from "../utils/problemIdentity";
+import {
+  buildRevisionRecord,
+  buildScheduledHistory,
+  DEFAULT_EASE_FACTOR,
+  getAdaptiveIntervalDays,
+  getInitialRevisionDate,
+  getNextEaseFactor,
+  getNextRevisionDate,
+  isValidRating,
+  MASTERY_REVISION_COUNT
+} from "../utils/revision";
 
 const AppContext = createContext(null);
 
@@ -33,6 +48,8 @@ const blankUserState = {
   searchHistory: [],
   recentlyViewed: []
 };
+
+const blankRevisionNotes = { approach: "", mistake: "", keyInsight: "" };
 
 const defaultState = {
   sessionUserId: DEFAULT_USER_ID,
@@ -50,6 +67,16 @@ function hashPassword(password) {
 
 function normalizeUserId(userId) {
   return userId.trim().toLowerCase();
+}
+
+function isValidImportedProblem(problem) {
+  return Boolean(
+    problem &&
+      typeof problem.name === "string" &&
+      problem.name.trim() &&
+      typeof problem.topic === "string" &&
+      problem.topic.trim()
+  );
 }
 
 function withAccountFields(user = blankUserState, passwordHash = "") {
@@ -111,7 +138,10 @@ function makeProblem(input) {
     dateSolved,
     lastRevised: "",
     nextRevisionDate: getInitialRevisionDate(dateSolved),
-    revisionStage: 0,
+    revisionCount: 0,
+    lastIntervalDays: null,
+    easeFactor: DEFAULT_EASE_FACTOR,
+    revisionNotes: { ...blankRevisionNotes },
     favorite: Boolean(input.favorite),
     practiceLater: false,
     completed: false,
@@ -122,46 +152,60 @@ function makeProblem(input) {
   };
 }
 
-function toCloudUser(userState, theme) {
-  return {
-    problems: dedupeProblemsByUrl(userState.problems || []),
-    searchHistory: userState.searchHistory || [],
-    recentlyViewed: userState.recentlyViewed || [],
-    theme: theme || "light",
-    updatedAt: new Date().toISOString()
+function buildRevisionUpdate(problem, { rating, approach, mistake, keyInsight }) {
+  const today = formatDate();
+  const revisionNumber = (problem.revisionCount || 0) + 1;
+  const previousIntervalDays = problem.lastIntervalDays ?? null;
+  const nextIntervalDays = getAdaptiveIntervalDays({
+    previousIntervalDays,
+    easeFactor: problem.easeFactor ?? null,
+    rating
+  });
+  const nextEaseFactor = getNextEaseFactor(problem.easeFactor, rating);
+  const record = buildRevisionRecord({
+    rating,
+    previousIntervalDays,
+    nextIntervalDays,
+    reviewedAt: today,
+    revisionNumber,
+    approach,
+    mistake,
+    keyInsight
+  });
+  const revisionNotes = { approach: record.approach, mistake: record.mistake, keyInsight: record.keyInsight };
+  const problemFields = {
+    lastRevised: today,
+    nextRevisionDate: getNextRevisionDate(today, nextIntervalDays),
+    revisionCount: revisionNumber,
+    lastIntervalDays: nextIntervalDays,
+    easeFactor: nextEaseFactor,
+    completed: revisionNumber >= MASTERY_REVISION_COUNT,
+    revisionNotes,
+    updatedAt: today
   };
-}
-
-function fromCloudUser(payload) {
-  return {
-    problems: dedupeProblemsByUrl(payload?.problems || []),
-    searchHistory: payload?.searchHistory || [],
-    recentlyViewed: payload?.recentlyViewed || []
-  };
-}
-
-function userDocRef(uid) {
-  return doc(db, "users", uid);
+  return { record, problemFields };
 }
 
 export function AppProvider({ children }) {
   const [state, setState] = useLocalStorage(STORAGE_KEY, getInitialState);
   const [cloudUser, setCloudUser] = useState(null);
+  const [cloudProblems, setCloudProblems] = useState([]);
+  const [cloudSettings, setCloudSettings] = useState({ searchHistory: [], recentlyViewed: [], theme: null });
   const [authLoading, setAuthLoading] = useState(isFirebaseConfigured);
   const [cloudReady, setCloudReady] = useState(!isFirebaseConfigured);
   const [toast, setToast] = useState(null);
-  const skipNextCloudSave = useRef(false);
+  const migrationRanForUid = useRef(null);
 
-  const theme = state.theme || "light";
   const activeUserId = isFirebaseConfigured ? cloudUser?.email || "" : state.sessionUserId || DEFAULT_USER_ID;
-  const activeStorageKey = isFirebaseConfigured ? cloudUser?.uid : activeUserId;
   const isAuthenticated = isFirebaseConfigured
     ? Boolean(cloudUser)
     : Boolean(activeUserId && state.users?.[activeUserId]);
-  const currentUser = activeStorageKey ? state.users?.[activeStorageKey] || blankUserState : blankUserState;
-  const problems = currentUser.problems || [];
-  const searchHistory = currentUser.searchHistory || [];
-  const recentlyViewed = currentUser.recentlyViewed || [];
+  const currentUser = !isFirebaseConfigured && activeUserId ? state.users?.[activeUserId] || blankUserState : blankUserState;
+
+  const problems = isFirebaseConfigured ? cloudProblems : currentUser.problems || [];
+  const searchHistory = isFirebaseConfigured ? cloudSettings.searchHistory || [] : currentUser.searchHistory || [];
+  const recentlyViewed = isFirebaseConfigured ? cloudSettings.recentlyViewed || [] : currentUser.recentlyViewed || [];
+  const theme = (isFirebaseConfigured ? cloudSettings.theme : state.theme) || state.theme || "light";
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -175,58 +219,72 @@ export function AppProvider({ children }) {
       setAuthLoading(false);
       if (!user) {
         setCloudReady(true);
-        setState((current) => ({ ...current, sessionUserId: "" }));
+        setCloudProblems([]);
+        setCloudSettings({ searchHistory: [], recentlyViewed: [], theme: null });
       }
     });
-  }, [setState]);
+  }, []);
 
   useEffect(() => {
     if (!isFirebaseConfigured || !cloudUser) return undefined;
 
     setCloudReady(false);
-    return onSnapshot(
-      userDocRef(cloudUser.uid),
-      async (snapshot) => {
-        if (!snapshot.exists()) {
-          const previousLocalUser = state.users[state.sessionUserId] || blankUserState;
-          await setDoc(userDocRef(cloudUser.uid), toCloudUser(previousLocalUser, theme));
-          return;
-        }
+    let settingsReady = false;
+    let problemsReady = false;
+    const markReadyIfLoaded = () => {
+      if (settingsReady && problemsReady) setCloudReady(true);
+    };
 
-        const data = snapshot.data();
-        skipNextCloudSave.current = true;
-        setState((current) => ({
-          ...current,
-          sessionUserId: cloudUser.uid,
-          theme: data.theme || current.theme || "light",
-          users: {
-            ...current.users,
-            [cloudUser.uid]: fromCloudUser(data)
-          }
-        }));
-        setCloudReady(true);
+    async function bootstrap() {
+      if (migrationRanForUid.current !== cloudUser.uid) {
+        migrationRanForUid.current = cloudUser.uid;
+        try {
+          await migrateLegacyUserDocIfNeeded(cloudUser.uid);
+        } catch {
+          notify("Could not check for legacy data migration.", "error");
+        }
+      }
+    }
+    bootstrap();
+
+    const unsubscribeSettings = subscribeToUserSettings(
+      cloudUser.uid,
+      (snapshot) => {
+        const data = snapshot.exists() ? snapshot.data() : {};
+        setCloudSettings({
+          searchHistory: data.searchHistory || [],
+          recentlyViewed: data.recentlyViewed || [],
+          theme: data.theme || null
+        });
+        settingsReady = true;
+        markReadyIfLoaded();
       },
       () => {
-        setCloudReady(true);
+        settingsReady = true;
+        markReadyIfLoaded();
+        notify("Cloud settings sync failed. Local cached data is still available.", "error");
+      }
+    );
+
+    const unsubscribeProblems = subscribeToProblems(
+      cloudUser.uid,
+      (nextProblems) => {
+        setCloudProblems(dedupeProblemsByUrl(nextProblems));
+        problemsReady = true;
+        markReadyIfLoaded();
+      },
+      () => {
+        problemsReady = true;
+        markReadyIfLoaded();
         notify("Cloud sync connection failed. Local cached data is still available.", "error");
       }
     );
-  }, [cloudUser, setState]);
 
-  useEffect(() => {
-    if (!isFirebaseConfigured || !cloudUser || !cloudReady) return;
-    if (skipNextCloudSave.current) {
-      skipNextCloudSave.current = false;
-      return;
-    }
-    console.info("[CodeRevise sync] Writing user document to Firestore", {
-      uid: cloudUser.uid,
-      problemCount: dedupeProblemsByUrl(currentUser.problems || []).length
-    });
-    setDoc(userDocRef(cloudUser.uid), toCloudUser(currentUser, theme), { merge: true }).catch(() => {
-      notify("Could not sync latest changes to cloud.", "error");
-    });
-  }, [cloudUser, cloudReady, currentUser, theme]);
+    return () => {
+      unsubscribeSettings();
+      unsubscribeProblems();
+    };
+  }, [cloudUser]);
 
   function notify(message, type = "success") {
     setToast({ id: crypto.randomUUID(), message, type });
@@ -234,7 +292,7 @@ export function AppProvider({ children }) {
 
   function updateCurrentUser(updater) {
     setState((current) => {
-      const userKey = isFirebaseConfigured ? cloudUser?.uid : current.sessionUserId;
+      const userKey = current.sessionUserId;
       if (!userKey) return current;
       const userState = current.users?.[userKey] || blankUserState;
       return {
@@ -249,187 +307,220 @@ export function AppProvider({ children }) {
 
   function addProblem(input) {
     const problem = makeProblem(input);
-    console.info("[CodeRevise addProblem] Creating scheduled problem", {
-      name: problem.name,
-      url: problem.url
-    });
-    updateCurrentUser((user) => ({ ...user, problems: [problem, ...user.problems] }));
+    if (isFirebaseConfigured && cloudUser) {
+      createProblemDoc(cloudUser.uid, problem).catch(() => notify("Could not save the problem to the cloud.", "error"));
+    } else {
+      updateCurrentUser((user) => ({ ...user, problems: [problem, ...user.problems] }));
+    }
     notify("Problem added to your revision plan.");
   }
 
   function captureProblem(input) {
     const problem = makeProblem(input);
-    const baseProblems = currentUser.problems || [];
-    const result = upsertProblemByUrl(baseProblems, problem);
-    const nextUserState = { ...currentUser, problems: result.problems };
-    const existedBefore = baseProblems.some(
-      (existingProblem) => normalizeProblemUrl(existingProblem.url) === normalizeProblemUrl(problem.url)
-    );
-
-    console.info("[CodeRevise captureProblem] Save requested", {
-      name: problem.name,
-      url: problem.url,
-      normalizedUrl: normalizeProblemUrl(problem.url),
-      existedBefore,
-      currentProblemCount: baseProblems.length
-    });
-
-    updateCurrentUser((user) => {
-      const latestResult = upsertProblemByUrl(user.problems || [], problem);
-      console.info("[CodeRevise captureProblem] Upsert completed", {
-        url: problem.url,
-        didCreate: latestResult.didCreate,
-        problemCount: latestResult.problems.length
-      });
-      return { ...user, problems: latestResult.problems };
-    });
+    const normalizedIncomingUrl = normalizeProblemUrl(problem.url);
+    const existing = problems.find((item) => normalizeProblemUrl(item.url) === normalizedIncomingUrl);
 
     if (isFirebaseConfigured && cloudUser) {
-      console.info("[CodeRevise captureProblem] Writing captured problem to Firestore immediately", {
-        uid: cloudUser.uid,
-        url: problem.url,
-        didCreate: result.didCreate,
-        problemCount: result.problems.length
-      });
-      setDoc(userDocRef(cloudUser.uid), toCloudUser(nextUserState, theme), { merge: true }).catch(() => {
-        notify("Problem was saved locally, but cloud sync failed.", "error");
+      if (existing) {
+        const merged = mergeProblemByUrl(existing, problem);
+        updateProblemDoc(cloudUser.uid, existing.id, merged).catch(() =>
+          notify("Problem was found, but cloud sync failed.", "error")
+        );
+      } else {
+        createProblemDoc(cloudUser.uid, problem).catch(() =>
+          notify("Problem was captured, but cloud sync failed.", "error")
+        );
+      }
+    } else {
+      updateCurrentUser((user) => {
+        const result = upsertProblemByUrl(user.problems || [], problem);
+        return { ...user, problems: result.problems };
       });
     }
 
-    notify(existedBefore ? "Problem already existed. Details refreshed." : "Problem captured to your planner.");
-    return { created: !existedBefore };
+    notify(existing ? "Problem already existed. Details refreshed." : "Problem captured to your planner.");
+    return { created: !existing };
   }
 
   function updateProblem(id, updates) {
-    updateCurrentUser((user) => ({
-      ...user,
-      problems: user.problems.map((problem) => {
-        if (problem.id !== id) return problem;
-        const dateSolvedChanged = updates.dateSolved && updates.dateSolved !== problem.dateSolved;
-        const nextRevisionDate = dateSolvedChanged
-          ? getInitialRevisionDate(updates.dateSolved)
-          : updates.nextRevisionDate ?? problem.nextRevisionDate;
+    const problem = problems.find((item) => item.id === id);
+    if (!problem) return;
+    const dateSolvedChanged = updates.dateSolved && updates.dateSolved !== problem.dateSolved;
+    const nextRevisionDate = dateSolvedChanged
+      ? getInitialRevisionDate(updates.dateSolved)
+      : (updates.nextRevisionDate ?? problem.nextRevisionDate);
+    const fields = {
+      ...updates,
+      nextRevisionDate,
+      revisionHistory: dateSolvedChanged ? buildScheduledHistory(updates.dateSolved) : problem.revisionHistory,
+      updatedAt: formatDate()
+    };
 
-        return {
-          ...problem,
-          ...updates,
-          nextRevisionDate,
-          revisionHistory: dateSolvedChanged ? buildScheduledHistory(updates.dateSolved) : problem.revisionHistory,
-          updatedAt: formatDate()
-        };
-      })
-    }));
+    if (isFirebaseConfigured && cloudUser) {
+      updateProblemDoc(cloudUser.uid, id, fields).catch(() => notify("Could not update the problem in the cloud.", "error"));
+    } else {
+      updateCurrentUser((user) => ({
+        ...user,
+        problems: user.problems.map((item) => (item.id === id ? { ...item, ...fields } : item))
+      }));
+    }
     notify("Problem updated.");
   }
 
   function deleteProblem(id) {
-    updateCurrentUser((user) => ({
-      ...user,
-      problems: user.problems.filter((problem) => problem.id !== id),
-      recentlyViewed: user.recentlyViewed.filter((item) => item !== id)
-    }));
+    if (isFirebaseConfigured && cloudUser) {
+      deleteProblemDoc(cloudUser.uid, id).catch(() => notify("Could not delete the problem from the cloud.", "error"));
+    } else {
+      updateCurrentUser((user) => ({
+        ...user,
+        problems: user.problems.filter((problem) => problem.id !== id),
+        recentlyViewed: user.recentlyViewed.filter((item) => item !== id)
+      }));
+    }
     notify("Problem deleted.", "warning");
   }
 
+  function patchProblem(id, fields) {
+    if (isFirebaseConfigured && cloudUser) {
+      updateProblemDoc(cloudUser.uid, id, fields).catch(() => notify("Could not sync this change to the cloud.", "error"));
+    } else {
+      updateCurrentUser((user) => ({
+        ...user,
+        problems: user.problems.map((problem) => (problem.id === id ? { ...problem, ...fields } : problem))
+      }));
+    }
+  }
+
   function toggleFavorite(id) {
-    updateCurrentUser((user) => ({
-      ...user,
-      problems: user.problems.map((problem) =>
-        problem.id === id ? { ...problem, favorite: !problem.favorite, updatedAt: formatDate() } : problem
-      )
-    }));
+    const problem = problems.find((item) => item.id === id);
+    if (!problem) return;
+    patchProblem(id, { favorite: !problem.favorite, updatedAt: formatDate() });
   }
 
   function toggleArchive(id) {
-    updateCurrentUser((user) => ({
-      ...user,
-      problems: user.problems.map((problem) =>
-        problem.id === id ? { ...problem, archived: !problem.archived, updatedAt: formatDate() } : problem
-      )
-    }));
+    const problem = problems.find((item) => item.id === id);
+    if (!problem) return;
+    patchProblem(id, { archived: !problem.archived, updatedAt: formatDate() });
     notify("Archive status updated.");
   }
 
   function togglePracticeLater(id) {
-    updateCurrentUser((user) => ({
-      ...user,
-      problems: user.problems.map((problem) =>
-        problem.id === id ? { ...problem, practiceLater: !problem.practiceLater, updatedAt: formatDate() } : problem
-      )
-    }));
+    const problem = problems.find((item) => item.id === id);
+    if (!problem) return;
+    patchProblem(id, { practiceLater: !problem.practiceLater, updatedAt: formatDate() });
     notify("Future practice list updated.");
   }
 
   function markPracticeDone(id) {
     const today = formatDate();
-    updateCurrentUser((user) => ({
-      ...user,
-      problems: user.problems.map((problem) =>
-        problem.id === id
-          ? {
-              ...problem,
-              lastRevised: today,
-              revisionHistory: [...(problem.revisionHistory || []), { date: today, stage: "practice" }],
-              updatedAt: today
-            }
-          : problem
-      )
-    }));
+    const problem = problems.find((item) => item.id === id);
+    if (!problem) return;
+
+    if (isFirebaseConfigured && cloudUser) {
+      updateProblemDoc(cloudUser.uid, id, {
+        lastRevised: today,
+        updatedAt: today,
+        revisionHistory: arrayUnion({ date: today, scheduled: false, practice: true })
+      }).catch(() => notify("Could not sync this practice session to the cloud.", "error"));
+    } else {
+      updateCurrentUser((user) => ({
+        ...user,
+        problems: user.problems.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                lastRevised: today,
+                revisionHistory: [...(item.revisionHistory || []), { date: today, practice: true }],
+                updatedAt: today
+              }
+            : item
+        )
+      }));
+    }
     notify("Practice logged without changing the revision date.");
   }
 
-  function completeRevision(id) {
-    const today = formatDate();
-    updateCurrentUser((user) => ({
-      ...user,
-      problems: user.problems.map((problem) => {
-        if (problem.id !== id) return problem;
-        const nextStage = Math.min(problem.revisionStage + 1, 5);
-        const nextRevisionDate = getNextRevisionDate(today, nextStage);
-        const completed = nextStage >= 5;
+  function completeRevision(id, { rating, approach = "", mistake = "", keyInsight = "" } = {}) {
+    if (!isValidRating(rating)) {
+      notify("Choose a recall rating to complete the revision.", "error");
+      return;
+    }
+    const problem = problems.find((item) => item.id === id);
+    if (!problem) return;
+    const { record, problemFields } = buildRevisionUpdate(problem, { rating, approach, mistake, keyInsight });
 
-        return {
-          ...problem,
-          lastRevised: today,
-          nextRevisionDate,
-          revisionStage: nextStage,
-          completed,
-          revisionHistory: [
-            ...(problem.revisionHistory || []).filter(
-              (entry) => !(entry.scheduled && entry.stage === nextStage && entry.date === today)
-            ),
-            { date: today, stage: nextStage },
-            ...(nextRevisionDate ? [{ date: nextRevisionDate, stage: nextStage + 1, scheduled: true }] : [])
-          ],
-          updatedAt: today
-        };
-      })
-    }));
-    notify("Revision completed. Next date calculated.");
+    if (isFirebaseConfigured && cloudUser) {
+      commitRevision(
+        cloudUser.uid,
+        id,
+        { ...problemFields, revisionHistory: arrayUnion({ date: record.reviewedAt, revisionNumber: record.revisionNumber }) },
+        record
+      ).catch(() => notify("Could not sync this revision to the cloud.", "error"));
+    } else {
+      updateCurrentUser((user) => ({
+        ...user,
+        problems: user.problems.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                ...problemFields,
+                revisionHistory: [
+                  ...(item.revisionHistory || []),
+                  {
+                    date: record.reviewedAt,
+                    revisionNumber: record.revisionNumber,
+                    rating: record.rating,
+                    approach: record.approach,
+                    mistake: record.mistake,
+                    keyInsight: record.keyInsight
+                  }
+                ]
+              }
+            : item
+        )
+      }));
+    }
+    notify(problemFields.completed ? "Revision completed. Problem mastered!" : "Revision completed. Next date calculated.");
   }
 
   function addSearchTerm(term) {
     const cleaned = term.trim();
     if (!cleaned) return;
-    updateCurrentUser((user) => ({
-      ...user,
-      searchHistory: [cleaned, ...user.searchHistory.filter((item) => item !== cleaned)].slice(0, 6)
-    }));
+    const nextHistory = [cleaned, ...searchHistory.filter((item) => item !== cleaned)].slice(0, 6);
+
+    if (isFirebaseConfigured && cloudUser) {
+      saveUserSettings(cloudUser.uid, { searchHistory: nextHistory }).catch(() => {});
+    } else {
+      updateCurrentUser((user) => ({ ...user, searchHistory: nextHistory }));
+    }
   }
 
   function markRecentlyViewed(id) {
-    updateCurrentUser((user) => ({
-      ...user,
-      recentlyViewed: [id, ...user.recentlyViewed.filter((item) => item !== id)].slice(0, 5)
-    }));
+    const nextRecent = [id, ...recentlyViewed.filter((item) => item !== id)].slice(0, 5);
+
+    if (isFirebaseConfigured && cloudUser) {
+      saveUserSettings(cloudUser.uid, { recentlyViewed: nextRecent }).catch(() => {});
+    } else {
+      updateCurrentUser((user) => ({ ...user, recentlyViewed: nextRecent }));
+    }
   }
 
   function setTheme(themeValue) {
     setState((current) => ({ ...current, theme: themeValue }));
+    if (isFirebaseConfigured && cloudUser) {
+      saveUserSettings(cloudUser.uid, { theme: themeValue }).catch(() => {});
+    }
   }
 
   function resetData() {
-    updateCurrentUser((user) => withAccountFields(blankUserState, user.passwordHash));
+    if (isFirebaseConfigured && cloudUser) {
+      Promise.all(problems.map((problem) => deleteProblemDoc(cloudUser.uid, problem.id))).catch(() =>
+        notify("Could not reset all cloud data.", "error")
+      );
+      saveUserSettings(cloudUser.uid, { searchHistory: [], recentlyViewed: [] }).catch(() => {});
+    } else {
+      updateCurrentUser((user) => withAccountFields(blankUserState, user.passwordHash));
+    }
     notify("Current user data reset.", "warning");
   }
 
@@ -438,13 +529,37 @@ export function AppProvider({ children }) {
       notify("Import failed. JSON must include a problems array.", "error");
       return false;
     }
-    updateCurrentUser((user) => ({
-      ...user,
-      problems: payload.problems,
-      searchHistory: payload.searchHistory || [],
-      recentlyViewed: payload.recentlyViewed || []
-    }));
-    notify("Data imported successfully.");
+
+    const validProblems = payload.problems.filter(isValidImportedProblem);
+    const skipped = payload.problems.length - validProblems.length;
+    if (!validProblems.length) {
+      notify("Import failed. No valid problems found in the file.", "error");
+      return false;
+    }
+
+    if (isFirebaseConfigured && cloudUser) {
+      Promise.all(
+        validProblems.map((problem) =>
+          createProblemDoc(cloudUser.uid, { ...problem, id: problem.id || crypto.randomUUID() })
+        )
+      ).catch(() => notify("Could not import all problems to the cloud.", "error"));
+      saveUserSettings(cloudUser.uid, {
+        searchHistory: payload.searchHistory || [],
+        recentlyViewed: payload.recentlyViewed || []
+      }).catch(() => {});
+    } else {
+      updateCurrentUser((user) => ({
+        ...user,
+        problems: validProblems,
+        searchHistory: payload.searchHistory || [],
+        recentlyViewed: payload.recentlyViewed || []
+      }));
+    }
+    notify(
+      skipped
+        ? `Imported ${validProblems.length} problems. Skipped ${skipped} invalid ${skipped === 1 ? "entry" : "entries"}.`
+        : "Data imported successfully."
+    );
     return true;
   }
 
@@ -457,8 +572,7 @@ export function AppProvider({ children }) {
 
     if (isFirebaseConfigured) {
       try {
-        const credential = await createUserWithEmailAndPassword(auth, cleaned, password);
-        await setDoc(userDocRef(credential.user.uid), toCloudUser(blankUserState, theme));
+        await createUserWithEmailAndPassword(auth, cleaned, password);
         notify(`Cloud account created for "${cleaned}".`);
         return true;
       } catch (error) {

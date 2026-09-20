@@ -32,8 +32,8 @@ export default function ProblemForm({ initialProblem, onSubmit, onClose }) {
       difficulty: initialProblem.difficulty,
       topic: initialProblem.topic,
       url: initialProblem.url,
-      description: initialProblem.description || initialProblem.revisionNotes?.approach || "",
-      notes: initialProblem.notes || initialProblem.revisionNotes?.comments || "",
+      description: initialProblem.description || "",
+      notes: initialProblem.notes || "",
       dateSolved: initialProblem.dateSolved,
       favorite: initialProblem.favorite
     });
