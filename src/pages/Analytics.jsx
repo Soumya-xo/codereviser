@@ -8,7 +8,10 @@ import {
   getActiveProblems,
   getCompletionRate,
   getMostPracticedTopic,
+  getRatingDistribution,
   getRevisionCount,
+  getStatusDistribution,
+  getTopicPerformance,
   getWeakestTopic
 } from "../utils/analytics";
 
@@ -20,6 +23,9 @@ export default function Analytics() {
   const streak = calculateStreak(problems);
   const topicDistribution = countBy(active, "topic");
   const difficultyDistribution = countBy(active, "difficulty");
+  const ratingDistribution = getRatingDistribution(problems);
+  const statusDistribution = getStatusDistribution(problems);
+  const topicPerformance = getTopicPerformance(problems);
 
   return (
     <div className="pageStack">
@@ -44,6 +50,36 @@ export default function Analytics() {
         <ChartBar title="Topic distribution" data={topicDistribution} />
         <ChartBar title="Difficulty distribution" data={difficultyDistribution} />
       </div>
+
+      <div className="splitGrid">
+        <ChartBar title="Recall quality" data={ratingDistribution} />
+        <ChartBar title="Problem status" data={statusDistribution} />
+      </div>
+
+      <section className="card listCard">
+        <div className="sectionHeader">
+          <div>
+            <span className="eyebrow">Patterns</span>
+            <h2>Topic mastery</h2>
+          </div>
+        </div>
+        {topicPerformance.length ? (
+          <div className="miniList">
+            {topicPerformance.map((row) => (
+              <div key={row.topic}>
+                <strong>{row.topic}</strong>
+                <span>
+                  {row.problemCount} problem{row.problemCount === 1 ? "" : "s"} · {row.revisionCount} revision
+                  {row.revisionCount === 1 ? "" : "s"} ·{" "}
+                  {row.averageQuality === null ? "No ratings yet" : `Avg recall ${row.averageQuality.toFixed(1)}/3`}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">Add problems to see topic-level performance.</p>
+        )}
+      </section>
     </div>
   );
 }

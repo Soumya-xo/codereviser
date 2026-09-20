@@ -37,20 +37,12 @@ export default function Capture() {
     if (!capturedProblem || !cloudReady || status !== "ready") return;
 
     const captureKey = `${normalizedUrl}:${capturedProblem.name}`;
-    console.info("[CodeRevise capture page] Effect evaluated", {
-      captureKey,
-      alreadyExists,
-      hasProcessedKey: processedCaptureKeys.has(captureKey),
-      status
-    });
-
     if (processedCaptureKeys.has(captureKey)) {
       setStatus("saving");
       return;
     }
 
     processedCaptureKeys.add(captureKey);
-    console.info("[CodeRevise capture page] Calling captureProblem exactly once for key", { captureKey });
     captureProblem(capturedProblem);
     setStatus("saving");
   }, [alreadyExists, captureProblem, capturedProblem, cloudReady, navigate, normalizedUrl, status]);
@@ -58,9 +50,6 @@ export default function Capture() {
   useEffect(() => {
     if (status !== "saving" || !alreadyExists) return;
 
-    console.info("[CodeRevise capture page] Captured problem is visible in state. Redirecting to Problems.", {
-      normalizedUrl
-    });
     setStatus("saved");
     navigate("/problems", { replace: true });
   }, [alreadyExists, navigate, normalizedUrl, status]);

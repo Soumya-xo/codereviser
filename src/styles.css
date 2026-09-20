@@ -573,6 +573,40 @@ h3 {
   color: var(--red);
 }
 
+.statusBadge.learning {
+  color: var(--brand);
+}
+
+.statusBadge.reviewing {
+  color: var(--orange);
+}
+
+.statusBadge.mastered {
+  color: var(--green);
+}
+
+.statusBadge.practice {
+  color: var(--purple);
+}
+
+.statusBadge.archived {
+  color: var(--muted);
+}
+
+.todaySection {
+  display: grid;
+  gap: 14px;
+}
+
+.sectionLabel {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.overdueLabel {
+  color: var(--red);
+}
+
 .notesPreview {
   min-height: 44px;
   margin-bottom: 0;
@@ -834,6 +868,56 @@ h3 {
   color: var(--muted);
   line-height: 1.5;
   white-space: pre-wrap;
+}
+
+.sessionSteps {
+  display: grid;
+  gap: 18px;
+  text-align: left;
+}
+
+.ratingRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.ratingButton {
+  display: grid;
+  gap: 4px;
+  padding: 12px 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+}
+
+.ratingButton span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.ratingButton.selected {
+  border-color: currentColor;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.ratingButton.forgot {
+  color: var(--red);
+}
+
+.ratingButton.hard {
+  color: var(--orange);
+}
+
+.ratingButton.good {
+  color: var(--brand);
+}
+
+.ratingButton.easy {
+  color: var(--green);
 }
 
 .dialogIcon {
@@ -1183,6 +1267,10 @@ h3 {
   .userSwitch {
     grid-template-columns: 1fr;
     flex-direction: column;
+  }
+
+  .ratingRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .calendarDay {

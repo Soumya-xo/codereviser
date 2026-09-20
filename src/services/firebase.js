@@ -10,7 +10,19 @@ import {
   updateEmail,
   updatePassword
 } from "firebase/auth";
-import { doc, getDoc, getFirestore, onSnapshot, setDoc } from "firebase/firestore";
+import {
+  addDoc,
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  onSnapshot,
+  setDoc,
+  updateDoc,
+  writeBatch
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -30,16 +42,22 @@ export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
 
 export {
+  addDoc,
+  arrayUnion,
+  collection,
   createUserWithEmailAndPassword,
   doc,
   EmailAuthProvider,
   getDoc,
+  getDocs,
   onAuthStateChanged,
   onSnapshot,
   reauthenticateWithCredential,
   setDoc,
   signInWithEmailAndPassword,
   signOut,
+  updateDoc,
   updateEmail,
-  updatePassword
+  updatePassword,
+  writeBatch
 };
