@@ -88,7 +88,9 @@ function metadata(platform, url, name, overrides = {}) {
     platform,
     url,
     name,
-    difficulty: overrides.difficulty || "Medium",
+    // Only the small hardcoded catalogs above have a verified difficulty. Everything
+    // else is genuinely unknown - never guess Easy/Medium/Hard for it.
+    difficulty: overrides.difficulty || "Unknown",
     topic: overrides.topic || "Other",
     description: overrides.description || `Practice and revise ${name}.`
   };

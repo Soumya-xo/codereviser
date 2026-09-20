@@ -9,6 +9,35 @@ import { getProblemStatus, STATUS_LABELS } from "../utils/analytics";
 import { isPastOrToday } from "../utils/date";
 
 const all = "All";
+const DIFFICULTY_ORDER = { Easy: 0, Medium: 1, Hard: 2, Unknown: 3 };
+const FAR_FUTURE = "9999-99-99";
+
+const sortOptions = [
+  { value: "due", label: "Due date" },
+  { value: "added", label: "Recently added" },
+  { value: "revised", label: "Recently revised" },
+  { value: "difficulty", label: "Difficulty" },
+  { value: "name", label: "Name" }
+];
+
+function sortProblems(list, sortBy) {
+  const sorted = [...list];
+  switch (sortBy) {
+    case "added":
+      return sorted.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    case "revised":
+      return sorted.sort((a, b) => (b.lastRevised || "").localeCompare(a.lastRevised || ""));
+    case "difficulty":
+      return sorted.sort(
+        (a, b) => (DIFFICULTY_ORDER[a.difficulty] ?? 3) - (DIFFICULTY_ORDER[b.difficulty] ?? 3)
+      );
+    case "name":
+      return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    case "due":
+    default:
+      return sorted.sort((a, b) => (a.nextRevisionDate || FAR_FUTURE).localeCompare(b.nextRevisionDate || FAR_FUTURE));
+  }
+}
 
 export default function Problems() {
   const { problems, addProblem, updateProblem, deleteProblem, addSearchTerm, searchHistory } = useApp();
@@ -16,6 +45,7 @@ export default function Problems() {
   const [editing, setEditing] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState("due");
   const [filters, setFilters] = useState({
     topic: all,
     difficulty: all,
@@ -46,6 +76,8 @@ export default function Problems() {
       .filter((problem) => !filters.due || isPastOrToday(problem.nextRevisionDate))
       .filter((problem) => !filters.completed || problem.completed);
   }, [problems, query, filters]);
+
+  const sortedProblems = useMemo(() => sortProblems(visibleProblems, sortBy), [visibleProblems, sortBy]);
 
   function openAdd() {
     setEditing(null);
@@ -80,7 +112,7 @@ export default function Problems() {
           <input value={query} onChange={(event) => setQuery(event.target.value)} onBlur={handleSearchBlur} placeholder="Search by problem name" />
         </div>
         <div className="filterGrid">
-          <label>
+          <label className={filters.topic !== all ? "activeFilter" : ""}>
             <Filter size={15} /> Topic
             <select value={filters.topic} onChange={(event) => setFilters({ ...filters, topic: event.target.value })}>
               {topics.map((topic) => (
@@ -88,7 +120,7 @@ export default function Problems() {
               ))}
             </select>
           </label>
-          <label>
+          <label className={filters.difficulty !== all ? "activeFilter" : ""}>
             Difficulty
             <select value={filters.difficulty} onChange={(event) => setFilters({ ...filters, difficulty: event.target.value })}>
               {[all, "Easy", "Medium", "Hard"].map((difficulty) => (
@@ -96,7 +128,7 @@ export default function Problems() {
               ))}
             </select>
           </label>
-          <label>
+          <label className={filters.platform !== all ? "activeFilter" : ""}>
             Platform
             <select value={filters.platform} onChange={(event) => setFilters({ ...filters, platform: event.target.value })}>
               {platforms.map((platform) => (
@@ -104,7 +136,7 @@ export default function Problems() {
               ))}
             </select>
           </label>
-          <label>
+          <label className={filters.status !== all ? "activeFilter" : ""}>
             Status
             <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
               <option value={all}>{all}</option>
@@ -115,7 +147,7 @@ export default function Problems() {
               ))}
             </select>
           </label>
-          <label>
+          <label className={filters.archiveStatus !== "active" ? "activeFilter" : ""}>
             Archive
             <select value={filters.archiveStatus} onChange={(event) => setFilters({ ...filters, archiveStatus: event.target.value })}>
               <option value="active">Active only</option>
@@ -125,29 +157,53 @@ export default function Problems() {
           </label>
         </div>
         <div className="toggleRow">
-          <label><input type="checkbox" checked={filters.favorites} onChange={(event) => setFilters({ ...filters, favorites: event.target.checked })} /> Favorites</label>
-          <label><input type="checkbox" checked={filters.due} onChange={(event) => setFilters({ ...filters, due: event.target.checked })} /> Revision Due</label>
-          <label><input type="checkbox" checked={filters.completed} onChange={(event) => setFilters({ ...filters, completed: event.target.checked })} /> Completed</label>
+          <label className={filters.favorites ? "activeFilter" : ""}>
+            <input type="checkbox" checked={filters.favorites} onChange={(event) => setFilters({ ...filters, favorites: event.target.checked })} /> Favorites
+          </label>
+          <label className={filters.due ? "activeFilter" : ""}>
+            <input type="checkbox" checked={filters.due} onChange={(event) => setFilters({ ...filters, due: event.target.checked })} /> Revision Due
+          </label>
+          <label className={filters.completed ? "activeFilter" : ""}>
+            <input type="checkbox" checked={filters.completed} onChange={(event) => setFilters({ ...filters, completed: event.target.checked })} /> Completed
+          </label>
         </div>
         {searchHistory.length ? <p className="muted">Recent searches: {searchHistory.join(", ")}</p> : null}
       </section>
 
       {visibleProblems.length ? (
-        <div className="problemGrid">
-          {visibleProblems.map((problem) => (
-            <ProblemCard
-              key={problem.id}
-              problem={problem}
-              onEdit={(item) => {
-                setEditing(item);
-                setFormOpen(true);
-              }}
-              onDelete={setPendingDelete}
-            />
-          ))}
-        </div>
+        <>
+          <div className="listToolbar">
+            <span className="muted">
+              {visibleProblems.length} problem{visibleProblems.length === 1 ? "" : "s"}
+            </span>
+            <label className="sortControl">
+              Sort
+              <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="problemList">
+            {sortedProblems.map((problem) => (
+              <ProblemCard
+                key={problem.id}
+                problem={problem}
+                layout="row"
+                onEdit={(item) => {
+                  setEditing(item);
+                  setFormOpen(true);
+                }}
+                onDelete={setPendingDelete}
+              />
+            ))}
+          </div>
+        </>
       ) : (
-        <EmptyState title="No problems found" description="Try a lighter filter set or add a new solved problem." action={<button className="button primary" onClick={openAdd}>Add problem</button>} />
+        <EmptyState title="No matches." description="Try a lighter filter set, or add a new solved problem." action={<button className="button primary" onClick={openAdd}>Add problem</button>} />
       )}
 
       {formOpen && <ProblemForm initialProblem={editing} onSubmit={submitProblem} onClose={() => setFormOpen(false)} />}

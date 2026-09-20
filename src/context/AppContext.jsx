@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useMemo } from "react";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { isFirebaseConfigured } from "../services/firebase";
+import { DEFAULT_GOALS } from "../utils/goals";
 import { blankUserState, DEFAULT_USER_ID, getInitialState, STORAGE_KEY } from "./appState";
 import { createAccountActions } from "./useAccountActions";
 import { useCloudSync } from "./useCloudSync";
+import { createGoalActions } from "./useGoalActions";
 import { createProblemActions } from "./useProblemActions";
 import { useToast } from "./useToast";
 
@@ -24,6 +26,8 @@ export function AppProvider({ children }) {
   const searchHistory = isFirebaseConfigured ? cloudSettings.searchHistory || [] : currentUser.searchHistory || [];
   const recentlyViewed = isFirebaseConfigured ? cloudSettings.recentlyViewed || [] : currentUser.recentlyViewed || [];
   const theme = (isFirebaseConfigured ? cloudSettings.theme : state.theme) || state.theme || "light";
+  const goalsSource = isFirebaseConfigured ? cloudSettings.goals : currentUser.goals;
+  const goals = useMemo(() => ({ ...DEFAULT_GOALS, ...goalsSource }), [goalsSource]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -46,6 +50,7 @@ export function AppProvider({ children }) {
 
   const problemActions = createProblemActions({ problems, searchHistory, recentlyViewed, cloudUser, updateCurrentUser, notify });
   const accountActions = createAccountActions({ state, setState, cloudUser, activeUserId, updateCurrentUser, notify });
+  const goalActions = createGoalActions({ goals, cloudUser, updateCurrentUser, notify });
 
   const value = useMemo(
     () => ({
@@ -59,10 +64,12 @@ export function AppProvider({ children }) {
       searchHistory,
       recentlyViewed,
       theme,
+      goals,
       toast,
       setToast,
       ...problemActions,
-      ...accountActions
+      ...accountActions,
+      ...goalActions
     }),
     [
       state.users,
@@ -74,6 +81,7 @@ export function AppProvider({ children }) {
       searchHistory,
       recentlyViewed,
       theme,
+      goals,
       toast
     ]
   );
