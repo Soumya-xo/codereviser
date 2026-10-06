@@ -63,3 +63,40 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.7;
 }
+
+.result {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #d0d5dd;
+  border-left: 4px solid #16a34a;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.result[hidden] {
+  display: none;
+}
+
+.result.error {
+  border-left-color: #dc2626;
+}
+
+.result.success > strong {
+  color: #15803d;
+}
+
+.result.error > strong {
+  color: #b91c1c;
+}
+
+.resultName {
+  color: #14171f;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.result small {
+  color: #667085;
+  line-height: 1.4;
+}
