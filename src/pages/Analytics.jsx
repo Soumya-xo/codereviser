@@ -1,8 +1,12 @@
 import { BarChart3, CheckCircle2, Flame, Repeat2, Target, Trophy } from "lucide-react";
 import ChartBar from "../components/ChartBar";
+import ConsistencyPanel from "../components/ConsistencyPanel";
 import EmptyState from "../components/EmptyState";
+import WeakAreasPanel from "../components/WeakAreasPanel";
 import StatCard from "../components/StatCard";
 import { useApp } from "../context/AppContext";
+import { getConsistency, getPatternDistribution, getWeakAreas } from "../utils/learning";
+import { UNCATEGORIZED } from "../utils/patternDetection";
 import {
   calculateStreak,
   countBy,
@@ -27,6 +31,9 @@ export default function Analytics() {
   const ratingDistribution = getRatingDistribution(problems);
   const statusDistribution = getStatusDistribution(problems);
   const topicPerformance = getTopicPerformance(problems);
+  const weakAreas = getWeakAreas(problems);
+  const consistency = getConsistency(problems);
+  const { [UNCATEGORIZED]: uncategorizedCount = 0, ...patternBars } = getPatternDistribution(problems);
 
   return (
     <div className="pageStack">
@@ -38,7 +45,7 @@ export default function Analytics() {
         </div>
       </div>
 
-      <div className="grid three">
+      <div className="summaryBand">
         <StatCard label="Total solved" value={active.length} detail="Active problems in the planner" icon={Trophy} tone="green" />
         <StatCard label="Total revisions" value={revisions} detail="Completed revision sessions" icon={Repeat2} tone="blue" />
         <StatCard label="Completion rate" value={`${completion}%`} detail="Problems through all stages" icon={CheckCircle2} tone="purple" progress={completion} />
@@ -65,12 +72,22 @@ export default function Analytics() {
         </div>
       </div>
 
+      <div className="analyticsSplit">
+        <WeakAreasPanel areas={weakAreas} problems={problems} />
+        <ConsistencyPanel consistency={consistency} />
+      </div>
+
       <div className="sectionDivider">
         <span className="eyebrow">Distributions</span>
       </div>
 
       <div className="chartGrid">
         <ChartBar title="Topic distribution" data={topicDistribution} />
+        <ChartBar
+          title="Pattern distribution"
+          data={patternBars}
+          footnote={uncategorizedCount ? `${uncategorizedCount} uncategorized — shown here, not charted.` : null}
+        />
         <ChartBar title="Difficulty distribution" data={difficultyDistribution} />
         <ChartBar title="Recall quality" data={ratingDistribution} />
         <ChartBar title="Problem status" data={statusDistribution} />
@@ -84,14 +101,18 @@ export default function Analytics() {
           </div>
         </div>
         {topicPerformance.length ? (
-          <div className="miniList">
+          <div className="masteryList">
             {topicPerformance.map((row) => (
-              <div key={row.topic}>
-                <strong>{row.topic}</strong>
-                <span>
-                  {row.problemCount} problem{row.problemCount === 1 ? "" : "s"} · {row.revisionCount} revision
-                  {row.revisionCount === 1 ? "" : "s"} ·{" "}
-                  {row.averageQuality === null ? "No ratings yet" : `Avg recall ${row.averageQuality.toFixed(1)}/3`}
+              <div className="masteryRow" key={row.topic}>
+                <div className="masteryMain">
+                  <strong>{row.topic}</strong>
+                  <span>
+                    {row.problemCount} problem{row.problemCount === 1 ? "" : "s"} · {row.revisionCount} revision
+                    {row.revisionCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <span className="masteryMetric">
+                  {row.averageQuality === null ? "No ratings" : `${row.averageQuality.toFixed(1)}/3`}
                 </span>
               </div>
             ))}

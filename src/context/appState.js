@@ -1,4 +1,4 @@
-import { formatDate } from "../utils/date";
+import { formatDate } from "../utils/date.js";
 import {
   buildRevisionRecord,
   buildScheduledHistory,
@@ -8,7 +8,7 @@ import {
   getNextEaseFactor,
   getNextRevisionDate,
   MASTERY_REVISION_COUNT
-} from "../utils/revision";
+} from "../utils/revision.js";
 
 export const STORAGE_KEY = "coderevise-state-v4";
 export const PREVIOUS_STORAGE_KEYS = ["coderevise-state-v3", "coderevise-state-v2", "coderevise-state"];

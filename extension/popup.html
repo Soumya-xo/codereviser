@@ -9,20 +9,55 @@
   <body>
     <main>
       <div class="brand">
-        <span>CR</span>
+        <img src="icons/icon32.png" width="32" height="32" alt="" />
         <div>
           <strong>CodeRevise</strong>
           <small>Capture problem</small>
         </div>
       </div>
-      <p id="status">Capture the current coding problem into your revision planner.</p>
-      <section id="result" class="result" hidden>
+
+      <p id="status" role="status" aria-live="polite">Detecting problem...</p>
+
+      <section id="preview" class="card" hidden aria-labelledby="previewVerdict">
+        <p id="previewVerdict" class="verdict"><span aria-hidden="true">✓</span> Problem detected</p>
+        <strong id="previewTitle" class="previewTitle"></strong>
+        <span id="previewMeta" class="meta"></span>
+        <span id="previewTopics" class="meta"></span>
+        <ul id="checklist" class="checklist"></ul>
+        <p id="previewDescription" class="description"></p>
+
+        <form id="editForm" class="editForm" hidden>
+          <label>
+            Title
+            <input id="editTitle" type="text" maxlength="200" required />
+          </label>
+          <label>
+            Difficulty
+            <select id="editDifficulty"></select>
+          </label>
+          <label>
+            Topics <small>(comma-separated)</small>
+            <input id="editTopics" type="text" placeholder="Array, Hash Table" />
+          </label>
+          <div class="row">
+            <button id="cancelEdit" class="secondary" type="button">Cancel</button>
+            <button id="applyEdit" class="primary" type="submit">Apply</button>
+          </div>
+        </form>
+
+        <div id="previewActions" class="row">
+          <button id="editButton" class="secondary" type="button">Edit</button>
+          <button id="saveButton" class="primary" type="button">Save Problem</button>
+        </div>
+      </section>
+
+      <section id="result" class="result" hidden aria-live="polite">
         <strong id="resultHeading"></strong>
         <span id="resultName" class="resultName"></span>
         <small id="resultMeta"></small>
+        <button id="retryButton" class="secondary" type="button" hidden>Try again</button>
       </section>
-      <button id="captureButton" type="button">Capture current page</button>
     </main>
-    <script src="popup.js"></script>
+    <script type="module" src="popup.js"></script>
   </body>
 </html>

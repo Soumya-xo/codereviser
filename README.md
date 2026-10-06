@@ -1,263 +1,227 @@
 # CodeRevise
 
-CodeRevise is a React application for programmers who want to retain coding problem patterns through spaced repetition. It tracks solved problems, schedules revision dates with an adaptive (ease-factor-based) algorithm, surfaces a daily revision queue, and gives analytics on topic balance, streaks, completion, and weak areas. It works fully offline on Local Storage, or with Firebase Authentication and Firestore for cloud sync across devices, and includes a companion Chrome extension for one-click problem capture.
+CodeRevise is a spaced-repetition planner for coding interview problems. Solved problems are scheduled for revision with an adaptive algorithm, a daily queue ranks what to review first, and analytics show where practice is weakest. A companion Chrome extension captures problems from LeetCode, GeeksforGeeks, Codeforces, CodeChef, and HackerRank in one click.
+
+It runs entirely on Local Storage, or with Firebase Authentication and Firestore for cloud sync across devices.
+
+**Live app:** https://codereviser.vercel.app
 
 ## Features
 
-**Dashboard**
-- A "Today's Focus" summary answering what to do right now: revisions due, a single "Start Today's Session" call to action, and daily solve/revise goal progress
-- Streak counter (current and best), completion rate, problems-solved count, and weakest topic
-- Upcoming revisions timeline and recent activity list
+### Problem library
+- Capture problems manually or from the browser extension, with name, platform, difficulty, topics, URL, notes, and description
+- Compact single-row library with search, filters (topic, pattern, difficulty, platform, status, favorites, due, completed, archived), and sorting
+- Favorites, archive and restore, and Future Practice for problems kept outside the revision schedule
+- Problem detail page at `/problems/:id` with revision information, a chronological revision history, and learning notes (notes, approach, mistakes, key insight). Actions cover starting a revision, editing, favoriting, archiving, Future Practice, and opening the original problem
 
-**Problems library**
-- Compact, single-row problem list with search, filters, and sorting (see below)
-- Add, edit, delete, favorite, and archive problems
-- Per-row overflow menu (notes, edit, future practice, archive, delete) that flips above the row when there isn't room below it
+### Revision system
+- **Adaptive spaced repetition.** Each problem carries an ease factor. Intervals grow from the previous interval using that factor, so problems you recall well are spaced out faster. A Forgot rating resets the interval to one day. See [Revision algorithm](#revision-algorithm).
+- **Recall ratings.** The session offers Forgot, Partial, Good, and Perfect. These map to the stored ratings `forgot`, `hard`, `good`, and `easy`, and each option shows the interval it will schedule.
+- **Reflection.** Forgot and Partial ask what you forgot or found confusing, and what to remember next time. Good and Perfect offer an optional insight. These are saved to the problem's mistake and key-insight fields and shown in the next session.
+- **Daily session.** A guided session per problem: attempt it, rate your recall, record notes. The confirmation shows the next review date and the interval.
+- **Revision history.** Each revision and Future Practice session is recorded with its date, rating, and the interval it produced.
+- **Mastery.** A problem is marked mastered after five completed revisions. It leaves the due queue but stays in the library.
 
-**Today's revision queue**
-- Overdue and due-today problems, grouped separately
-- Daily/weekly solve and revise goal tracking with an editable goals form
-- Future-practice suggestions to help fill a solve goal
-- Overall daily completion shown as a radial progress indicator
+### Learning insights
+- **Today's focus.** A deterministic daily queue ranks problems by priority: overdue, low recent recall, weak area, due today, future practice (when there is capacity), then recently learned quick reviews. Each item states why it was chosen.
+- **Weak areas.** Patterns (or topics, when no pattern applies) are scored from recall quality, overdue revisions, repeated mistakes, and whether they have been revised at all. Each area lists its reasons and links to its problems.
+- **Topic mastery** with average recall quality per topic.
+- **Distributions** for topics, patterns, difficulty, recall quality, and problem status.
+- **Consistency.** Current and longest revision streaks, problems revised and captured, recall quality (the share of Good and Perfect ratings), a 7-day activity strip, and a 12-week heatmap. Only real revisions and practice sessions count. Opening or capturing a problem does not.
+- **Calendar.** A monthly view with due, completed, and today indicators, plus a subtle tint on days with completed revisions.
 
-**Future Practice**
-- A separate list for problems bookmarked for open-ended practice with no fixed revision date, independent of the spaced-repetition schedule
+### Pattern detection
+Patterns are assigned by a deterministic, rule-based heuristic. No AI model or external service is involved.
 
-**Guided Revision Session**
-- Step 1: open the original problem and attempt it without looking at previous notes
-- Step 2: rate recall (Forgot / Hard / Good / Easy) — each option previews the interval it will schedule — and record approach, mistake, and key-insight notes
-- Step 3: a confirmation screen showing the revision was saved, the next review date (or a "Mastered" badge once the mastery threshold is reached), and today's completed-revision progress
+- Twenty-one patterns are recognized: Hash Map, Two Pointers, Sliding Window, Binary Search, Stack, Queue, Linked List, Tree, Graph, BFS, DFS, Heap / Priority Queue, Greedy, Dynamic Programming, Backtracking, Prefix Sum, Sorting, Intervals, Bit Manipulation, Union Find, and Monotonic Stack.
+- Topic tags carry more weight than title and description cues. A pattern is reported only when the combined evidence reaches a minimum score. Weak evidence produces **Uncategorized**, not a guess.
+- **Manual patterns override detection.** The problem form has a Patterns field. Once set by hand, those patterns are used as entered, including an intentionally empty list. Automatic detection never overwrites them.
 
-**Adaptive spaced-repetition scheduling** — see [Revision Algorithm](#revision-algorithm) below for the exact behavior.
+### Chrome extension
+The extension is a local, unpublished Chrome extension. It is loaded unpacked from the `extension/` folder and is not listed on the Chrome Web Store.
 
-**Revision history** — every completed revision is recorded per problem with its rating, the interval it produced, and the notes written at that attempt.
+- **One-click capture.** Click the extension on a supported problem page to open a preview.
+- **Preview before saving.** Shows the title, platform, difficulty, topics, a short description, and an extraction checklist. Each field is marked as detected, taken from the tab title, unavailable, or not available on that site.
+- **Editable metadata.** Title, difficulty (Easy, Medium, Hard, or Unknown), and comma-separated topics can be corrected before saving.
+- **Duplicate detection.** The capture page checks your problem list using the same URL identity the app uses. A duplicate shows "Already captured" with **Open Problem** and **Capture Anyway**.
+- **Quick actions after capture.** Open Problem, Add to Future Practice, and Done.
+- **Difficulty is never guessed.** If a page does not expose Easy, Medium, or Hard, difficulty stays Unknown. Codeforces ratings and CodeChef numeric ratings are not converted.
+- **Permissions:** `tabs`, `windows`, `activeTab`, and `scripting`. The extension has no host permissions and no `<all_urls>`. It reads a page only after you click it.
 
-**Notes, mistakes, and key insights** — recorded per revision and shown again the next time you review that problem, plus a standalone description field.
+Extraction by platform:
 
-**Search, filtering, and sorting**
-- Search by problem name, with recent-search history
-- Filters for topic, difficulty, platform, status, favorites, due, completed, and archive state, with an active-filter indicator on each control
-- Sort by due date, recently added, recently revised, difficulty, or name
+| Platform | Title | Difficulty | Topics | Description | Verification status |
+| --- | --- | --- | --- | --- | --- |
+| LeetCode | Page title element, then tab title, then URL slug | Difficulty pill, otherwise Unknown | Tag links | Problem description | Not verified against a live page |
+| GeeksforGeeks | Problem heading, then tab title, then URL slug | "Difficulty:" label, otherwise Unknown | Topic Tags section | Problem statement | Matched to the site's page code and styles; not checked in a live browser |
+| Codeforces | Problem title, then tab title | Always Unknown (ratings, not levels) | Tag boxes | Not captured | Not verified against a live page |
+| CodeChef | Page title, with the "Practice Coding Problem" suffix removed | Always Unknown (numeric ratings) | Not captured | Not captured | Title only, from the page `<title>` |
+| HackerRank | Challenge heading, then tab title, then URL slug | Labelled "Difficulty" block, otherwise Unknown | Not captured (none in server markup) | Challenge body | Matched to server-rendered markup; not checked in a live browser |
 
-**Calendar**
-- Monthly grid with due (red), completed (green), and today (blue outline) indicators
-- A subtle activity-intensity tint on days with completed revisions, derived from that day's actual completed-revision count
-- Click a date to see everything due or completed on it
+### Interface
+- Light and dark themes, switchable in Settings → Appearance, with a layered dark surface system
+- Compact, developer-tool layout: a grouped sidebar (Plan, Practice, Insights, System), problem rows rather than large cards, and restrained blue accents
+- Inter for interface text and JetBrains Mono for numeric readouts
+- Responsive for desktop, tablet, and mobile. The sidebar becomes an off-canvas menu on narrow screens
+- Settings for theme, account (user ID and password), JSON export and import, and a confirmed data reset
+- Subtle 150–180 ms transitions, disabled under `prefers-reduced-motion`
 
-**Analytics / Study Insights**
-- Total solved, total revisions, completion rate, current/best streak
-- Weakest topic and most-practiced topic
-- Distribution charts for topic, difficulty, recall quality (rating distribution), and status
-- Topic-level performance (problem count, revision count, average recall quality)
+## Tech stack
 
-**Topic and difficulty performance** — surfaced in Analytics via the topic-mastery list and the topic/difficulty distribution charts.
-
-**Problem lifecycle / status** — each problem is one of: **Learning** (no revisions yet), **Reviewing** (at least one revision, not yet mastered), **Mastered** (reached the mastery threshold), **Future practice** (bookmarked with no fixed date), or **Archived**. Status is derived automatically from `archived`, `completed`, `practiceLater`, and `revisionCount` — it isn't set manually.
-
-**Favorites and archive** — favorite any problem for quick access; archive removes a problem from the active queue and analytics without deleting it, and it can be restored at any time.
-
-**Firebase Authentication** — email/password login and registration when Firebase is configured, with change-password and change-email/user-ID flows.
-
-**Firestore cloud sync** — problems, revisions, and settings (theme, search history, recently viewed, goals) sync to Firestore per authenticated user, isolated by security rules (see [Firebase Setup](#firebase-setup-cloud-sync)).
-
-**Local Storage fallback** — if Firebase environment variables aren't set, CodeRevise runs entirely on Local Storage with simple hashed-password, multi-user-ID account separation on the same device.
-
-**Data migration** — still implemented: on first sign-in, any legacy single-document `users/{userId}.problems` array from an earlier version is automatically migrated into the `problems` subcollection structure. The legacy document is left in place (not deleted) as a safety net.
-
-**Chrome extension** — captures the active tab's problem page into CodeRevise in one click (see [Browser Extension](#browser-extension)).
-
-**Supported platforms for extension capture** — LeetCode, GeeksForGeeks, HackerRank, CodeChef, and Codeforces are recognized by URL and get a platform, name, and topic guess; any other URL still captures with platform "Other."
-
-**Automatic difficulty extraction** — currently implemented for LeetCode only: the extension reads the real Easy/Medium/Hard difficulty pill directly off the LeetCode page DOM at capture time (via `activeTab`/`scripting` permissions scoped to the tab you click "Capture" on) and passes it to CodeRevise, overriding the small hardcoded catalog guess. If it can't be read reliably, difficulty is sent as `Unknown` rather than guessed. GeeksForGeeks, Codeforces, CodeChef, and HackerRank do not yet have live-page extraction and continue to fall back to the URL-based guess.
-
-**Responsive UI / dark and light themes** — a light theme and a near-black dark theme (toggled in Settings), with layered surface elevation in dark mode, Inter as the interface font, and JetBrains Mono for numeric readouts (streaks, stats, progress figures). The layout is responsive down to mobile, with an off-canvas sidebar below the desktop breakpoint.
-
-**Empty states, loading states, toasts, and dialogs** — purposeful empty-state messaging (e.g. "Caught up.") with a relevant action where one exists, skeleton loading placeholders on the Dashboard, toast notifications for background actions, and confirmation dialogs for destructive actions like delete.
-
-## Screenshots
-
-> Screenshots have not been captured yet for this build. Run the app locally (`npm run dev`) and add images here.
-
-### Dashboard
-_Screenshot coming soon._
-
-### Problems Library
-_Screenshot coming soon._
-
-### Today's Revision
-_Screenshot coming soon._
-
-### Revision Session
-_Screenshot coming soon._
-
-### Calendar
-_Screenshot coming soon._
-
-### Analytics
-_Screenshot coming soon._
-
-## Technology Stack
-
-- React 18 (JavaScript, functional components + hooks)
+- React 18 with JavaScript (functional components and hooks)
 - React Router v7
-- React Context API for app-wide state (no external state library)
-- Vite for dev server and build
-- Firebase Authentication and Firestore (`firebase` SDK)
-- Local Storage as the offline/no-Firebase data layer
+- React Context for app state
+- Vite for the dev server and production build
+- Firebase Authentication and Cloud Firestore (optional)
+- Local Storage as the data layer when Firebase is not configured
+- Plain CSS with design tokens in `src/styles.css`, no CSS framework
 - Lucide React for icons
-- Plain CSS with design tokens (CSS custom properties) in `src/styles.css` — no CSS framework
-- Chrome Extension (Manifest V3)
+- Chrome Extension APIs (Manifest V3): `chrome.tabs`, `chrome.windows`, `chrome.scripting`, and `activeTab`
+- Node's built-in test runner for the extension and learning-logic tests
 
-## Folder Structure
+## Project structure
 
 ```text
 codereviser/
-  extension/              Chrome extension (Manifest V3)
-    icons/
-    extraction.js          Injected into the active tab to read page metadata (LeetCode difficulty)
-    manifest.json
+  extension/                 Chrome extension (Manifest V3, unpacked)
+    lib/preview.js           Preview normalization and capture-parameter logic
+    extraction.js            Injected into the active tab to read problem metadata
     popup.html / popup.css / popup.js
-    README.md
+    manifest.json
+    icons/                   16, 32, 48, and 128 px PNG icons
+    tests/                   Extraction, preview, capture, success-action, and learning tests
   src/
-    components/            Reusable UI: ProblemCard, RevisionSession, Layout (sidebar/topbar),
-                            ProblemForm, GoalProgressRow, GoalSettingsForm, NotesDialog,
-                            ConfirmDialog, EmptyState, Toast, StatCard, ChartBar, Skeleton
-    context/                App state: AppContext, appState (problem/schema helpers),
-                            useProblemActions, useAccountActions, useGoalActions,
-                            useCloudSync, useToast
-    data/                   Static reference data
-    hooks/                  useLocalStorage
-    pages/                  Dashboard, Problems, Today, FuturePractice, Calendar, Analytics,
-                            Capture, Settings, Login
-    services/               firebase.js (SDK init/config), firestore.js (Firestore reads/writes,
-                            legacy-doc migration)
-    utils/                  date, revision (scheduling algorithm), analytics, goals,
-                            problemIdentity (URL de-dup/merge), problemMetadata (platform
-                            detection from URL)
+    components/              ProblemCard, ProblemForm, RevisionSession, WeakAreasPanel,
+                             ConsistencyPanel, TodaysFocus, Layout, ChartBar, StatCard, and more
+    context/                 AppContext and action hooks (problems, account, goals, cloud sync)
+    hooks/                   useLocalStorage
+    pages/                   Dashboard, Today, Problems, ProblemDetail, FuturePractice,
+                             Analytics, Calendar, Capture, Settings, Login
+    services/                firebase.js (SDK setup), firestore.js (reads, writes, migration)
+    utils/                   revision (scheduling), learning (insights and queue),
+                             patternDetection, analytics, goals, date, problemIdentity,
+                             problemMetadata, captureDetails
     App.jsx, main.jsx, styles.css
-  firestore.rules
-  .env.example
-  index.html
-  vite.config.js
-  package.json
+  firestore.rules            Firestore security rules
+  vercel.json                SPA rewrite so routes such as /capture load on Vercel
+  .env.example               Firebase variable names with placeholder values
+  package.json, vite.config.js, index.html
 ```
 
-## Installation
+## Getting started
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. Without any Firebase configuration, the app runs immediately on Local Storage.
+Open the URL Vite prints (usually `http://127.0.0.1:5173`). Without Firebase configuration, the app runs on Local Storage. Create an account on the login screen to begin.
 
-## Firebase Setup (Cloud Sync)
+Other scripts:
 
-CodeRevise supports Firebase email/password authentication and Firestore sync. This is optional — if the environment variables below aren't set, the app falls back to Local Storage automatically.
+```bash
+npm test          # extension and learning-logic tests
+npm run build     # production build into dist/
+npm run preview   # serve the production build locally
+```
+
+## Firebase setup (optional cloud sync)
+
+CodeRevise supports Firebase email/password authentication and Firestore sync. If the `VITE_FIREBASE_*` variables are not set, the app falls back to Local Storage.
 
 1. Create a Firebase project.
-2. Enable **Authentication → Email/Password**.
+2. Enable **Authentication → Sign-in method → Email/Password**.
 3. Create a **Firestore Database**.
-4. Copy `.env.example` to `.env.local`:
+4. Copy the example file and fill in your web app's configuration:
 
    ```bash
    cp .env.example .env.local
    ```
 
-5. Fill in your Firebase web app keys in `.env.local` (see the variable names in `.env.example` — do not commit real credentials to the repository):
+   The variable names are listed in `.env.example`: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, and `VITE_FIREBASE_APP_ID`.
 
-   ```bash
-   VITE_FIREBASE_API_KEY=your-api-key
-   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=your-project-id
-   VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-   VITE_FIREBASE_APP_ID=your-app-id
-   ```
-
-6. Deploy the Firestore security rules checked into this repo at [`firestore.rules`](firestore.rules):
+5. Deploy the security rules in [`firestore.rules`](firestore.rules):
 
    ```bash
    firebase deploy --only firestore:rules
    ```
 
-Each user's data is isolated under `users/{userId}`, `users/{userId}/problems/{problemId}`, and `users/{userId}/problems/{problemId}/revisions/{revisionId}`, scoped by the rules to `request.auth.uid == userId`. If you previously ran an earlier version of CodeRevise, the app automatically migrates any legacy single-document `users/{userId}.problems` array into the `problems` subcollection the first time each user signs in — the legacy document is left in place, not deleted.
+6. For a deployed site, add its domain under **Authentication → Settings → Authorized domains**.
 
-`.env.local` is git-ignored; never commit it or paste real Firebase credentials into this README or any tracked file.
+Each user's data is stored under `users/{userId}`, `users/{userId}/problems/{problemId}`, and `users/{userId}/problems/{problemId}/revisions/{revisionId}`. The rules allow access only when `request.auth.uid` matches `userId`. Users with data in an earlier single-document format are migrated into the subcollection layout the first time they sign in. The legacy document is kept.
 
-## Browser Extension
+## Browser extension
 
-The Chrome extension lives in [`extension/`](extension/).
+The extension lives in [`extension/`](extension/). It is not published on the Chrome Web Store.
 
-**Local setup:**
+**Install (unpacked):**
 
-1. Start CodeRevise: `npm run dev`
-2. Open `chrome://extensions`.
-3. Turn on **Developer mode**.
-4. Click **Load unpacked** and select the `extension/` folder.
-5. Open a problem page on LeetCode, GeeksForGeeks, HackerRank, CodeChef, or Codeforces.
-6. Click the CodeRevise extension button.
+1. Open `chrome://extensions` and turn on **Developer mode**.
+2. Click **Load unpacked** and select the `extension/` folder.
 
-The extension reads the tab's URL and title, and — on LeetCode only — the real difficulty off the page, then opens `/capture` in CodeRevise (reusing an existing CodeRevise tab if one is open). The Capture page detects platform/topic/name from the URL via `problemMetadata.js`, applies the extension's difficulty override when present, and either adds the problem or refreshes an existing one with the same URL.
+**Target app.** The extension opens `https://codereviser.vercel.app/capture` by default. To test against a local app, run `npm run dev`, set `USE_DEVELOPMENT_APP = true` near the top of `extension/popup.js`, and reload the extension. Set it back to `false` before testing the production app. The development origin is `http://127.0.0.1:5173`.
 
-To point the extension at a deployed app instead of `localhost`, update `CODE_REVISE_CAPTURE_URL` and `CODE_REVISE_ORIGIN` in `extension/popup.js`. See [`extension/README.md`](extension/README.md) for details.
+**Use:** open a problem page on a supported site, click the CodeRevise button, review the preview, optionally edit it, and click **Save Problem**. CodeRevise opens in a new tab, or an existing CodeRevise tab is reused.
 
-## Revision Algorithm
+## Deployment
 
-The scheduling logic lives in `src/utils/revision.js`, applied through `buildRevisionUpdate` in `src/context/appState.js`. This documents the algorithm as it actually runs in the code today — not a fixed table of flat day offsets.
+The app is deployed at **https://codereviser.vercel.app**. Build with Vite and publish `dist/`. [`vercel.json`](vercel.json) rewrites all paths to `index.html`, so client-side routes such as `/problems/:id` and `/capture` load directly.
 
-**Initial scheduling.** When a problem is added, its first revision is scheduled exactly one day after `dateSolved` (`getInitialRevisionDate`).
+The extension's production target is the same origin, so the capture route must be served there.
 
-**Rating.** Each completed revision session is rated one of `forgot`, `hard`, `good`, or `easy`.
+## Revision algorithm
 
-**Ease factor.** Every problem carries an `easeFactor`, starting at `2.5` (`DEFAULT_EASE_FACTOR`) and never dropping below `1.3` (`MIN_EASE_FACTOR`). After each rating, the ease factor shifts by a fixed delta and is clamped to that floor:
+The scheduling logic is in `src/utils/revision.js` and is applied by `buildRevisionUpdate` in `src/context/appState.js`.
 
-| Rating | Ease factor change |
+**Initial scheduling.** A new problem's first revision is one day after its solved date.
+
+**Ratings.** Each completed revision is rated `forgot`, `hard`, `good`, or `easy`, shown in the session as Forgot, Partial, Good, and Perfect.
+
+**Ease factor.** Each problem starts at `2.5` and never drops below `1.3`. After each rating the factor changes by a fixed amount:
+
+| Rating | Change |
 | --- | --- |
 | Forgot | −0.3 |
-| Hard | −0.15 |
+| Hard (Partial) | −0.15 |
 | Good | 0 |
-| Easy | +0.15 |
+| Easy (Perfect) | +0.15 |
 
-**Interval progression.** The next interval (`getAdaptiveIntervalDays`) is computed as follows:
+**Intervals.**
+- The first revision, and any Forgot rating, uses the base interval for that rating: Forgot 1 day, Partial 2 days, Good 5 days, Perfect 10 days.
+- Later Partial, Good, and Perfect ratings grow from the previous interval: previous interval × ease factor, rounded to the nearest day, and never below that rating's base interval. Perfect applies an extra ×1.3 before rounding.
 
-- If this is the problem's **first** revision (no previous interval recorded yet), or the rating is **Forgot**, the interval is simply the base value for that rating: Forgot → 1 day, Hard → 2 days, Good → 5 days, Easy → 10 days.
-- Otherwise (second+ revision, rating Hard/Good/Easy), the interval grows from the *previous* interval: `previousIntervalDays × easeFactor` (Easy additionally multiplies the ease factor by 1.3 before applying it), rounded to the nearest day, with a floor of that rating's base interval so it never shrinks below the flat value.
+Forgot therefore resets a problem to a one-day interval and lowers its ease factor, while repeated good recall spaces it out.
 
-In other words, Forgot always resets the problem back to a 1-day interval and lowers its ease factor; Good and Easy compound the interval upward using the ease factor, so problems you consistently recall well get spaced out faster than a fixed schedule, while ones you keep forgetting stay on a short leash.
+**Next review date.** Today's date plus the computed interval.
 
-**How the next review date is calculated.** `nextRevisionDate = getNextRevisionDate(today, intervalDays)`, i.e. today's date plus the interval computed above.
+**Mastery.** After five completed revisions a problem is marked complete. It leaves the due queue and counts toward completion, but stays in the library and can still be revised.
 
-**Mastery / completion threshold.** After `MASTERY_REVISION_COUNT` (5) completed revisions, the problem is flagged `completed: true`. It then graduates out of Today's due queue and Dashboard's upcoming list, and counts toward the completion-rate stat. It is not deleted or locked — it can still be found and manually revised again from the Problems page (its status becomes "Mastered" rather than being removed from the library).
+**Future Practice.** Marking a Future Practice problem as practiced logs a practice entry and updates `lastRevised`. It does not change the schedule, ease factor, or revision count.
 
-**Lifecycle/status.** Status shown in the UI (`getProblemStatus`) is derived, not stored directly: Archived (if archived) → Mastered (if `completed`) → Future practice (if `practiceLater`) → Learning (no revisions logged yet) → otherwise Reviewing.
+## Testing
 
-**"Mark practiced" (Future Practice).** Problems saved to Future Practice have no fixed schedule; marking one practiced records a `practice` entry in its revision history and updates `lastRevised`, but does **not** touch `nextRevisionDate`, `easeFactor`, or `revisionCount` — the adaptive algorithm above only applies to scheduled (due-queue) revisions.
+```bash
+npm test
+```
 
-## UI & Design
+The suite runs 148 tests on Node's built-in test runner. It covers extension extraction (platform dispatch, validation, malformed and unsupported pages, host spoofing, selector scope), the preview and capture-parameter logic, duplicate identity, capture outcomes, the post-capture actions, and the learning logic: pattern detection, weak-area scoring, the daily queue, consistency metrics, revision timelines, and recall mapping.
 
-- **Themes:** a light theme and a near-black dark theme, switchable in Settings → Appearance, with a layered dark-mode surface system (distinct background/card/hover elevations) rather than a single flat gray.
-- **Typography:** Inter for interface text; JetBrains Mono (tabular figures) for numeric readouts — streaks, stat values, goal fractions, progress percentages.
-- **Problem rows:** a compact, single-row list layout (rather than large cards) with inline favorite, quick actions, and an overflow menu for secondary actions.
-- **Sidebar navigation:** grouped by task (Plan / Practice / Insights / System) with an active-item accent indicator.
-- **Focused revision experience:** the Revision Session is a focused, step-by-step flow (attempt → rate → saved confirmation with next-review date), not a single long form.
-- **Analytics / Study Insights:** distribution charts and a topic-performance list, organized with a lighter visual hierarchy rather than a wall of equal-weight cards.
-- **Calendar activity visualization:** due/completed/today indicators plus a subtle background-intensity cue on days with more completed revisions.
-- **Responsive layout:** sidebar collapses to an off-canvas menu on narrow viewports; grids and toolbars stack accordingly.
-- **Micro-interactions:** subtle ~150–200ms hover/press/focus transitions throughout (buttons, rows, calendar cells, rating selection), and all of it is disabled for users with `prefers-reduced-motion` set.
+There are no component or browser tests. The interface is checked by manual testing, and `npm run build` verifies the production bundle.
 
-## Security / Environment Variables
+## Security
 
-- Firebase configuration is read from `VITE_FIREBASE_*` environment variables (see `src/services/firebase.js`), sourced from `.env.local`.
-- `.env.example` documents the required variable names with placeholder values only — copy it to `.env.local` and fill in your own project's keys.
-- `.env.local` is listed in `.gitignore` and must never be committed. This README does not and should not contain real Firebase credentials.
-- Firestore access is restricted by [`firestore.rules`](firestore.rules) to the authenticated owner of each `users/{userId}` document tree.
-- If Firebase env vars are absent, `isFirebaseConfigured` is `false` and the app runs entirely on Local Storage with locally hashed passwords — no network credentials are involved in that mode.
+- Firebase configuration is read from `VITE_FIREBASE_*` variables in `.env.local`. `.env.local` is listed in `.gitignore`, but that alone does not protect it. Keep your local copy private, and never paste real values into tracked files.
+- `.env.example` contains placeholder values only.
+- Firestore access is restricted by [`firestore.rules`](firestore.rules) to the signed-in owner of each `users/{userId}` tree. Deploy the rules before relying on cloud sync.
+- Local Storage mode keeps accounts in the browser and stores passwords with a simple hash. That suits a personal, single-device planner but is not a secure authentication system. Use Firebase for anything that needs real account security.
+- The extension requests only the permissions listed above, and it reads a page only when you click it.
 
-## Future Improvements
+## Future improvements
 
-- Live-page difficulty/topic extraction for GeeksForGeeks, Codeforces, CodeChef, and HackerRank (currently LeetCode-only)
-- CSV import/export alongside the existing JSON export/import
+- Confirm the LeetCode, GeeksforGeeks, and HackerRank selectors in a live browser. The GeeksforGeeks and HackerRank selectors are matched to the sites' markup, not yet checked in a browser.
+- Validate pattern detection against a labelled set of problems, and show patterns on problem rows
+- Show duplicate detection in the extension popup, not only on the capture page
+- Publish the extension to the Chrome Web Store
+- CSV import and export alongside the existing JSON format
 - Rich Markdown notes
-- Additional chart types and longer-range progress trends
-- Automated test suite (e.g. React Testing Library)
+- Component and browser tests for the interface

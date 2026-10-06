@@ -1,4 +1,4 @@
-export default function ChartBar({ title, data }) {
+export default function ChartBar({ title, data, footnote }) {
   const entries = Object.entries(data);
   const max = Math.max(...entries.map((entry) => entry[1]), 1);
 
@@ -22,6 +22,7 @@ export default function ChartBar({ title, data }) {
           <p className="muted">No data yet.</p>
         )}
       </div>
+      {footnote ? <p className="chartNote muted">{footnote}</p> : null}
     </section>
   );
 }

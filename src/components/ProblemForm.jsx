@@ -1,12 +1,14 @@
 import { Save, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getProblemMetadataFromUrl } from "../utils/problemMetadata";
+import { getProblemPatterns, normalizePatternNames } from "../utils/patternDetection";
 
 const blankProblem = {
   name: "",
   platform: "LeetCode",
   difficulty: "Easy",
   topic: "",
+  patternsText: "",
   url: "",
   description: "",
   notes: "",
@@ -20,17 +22,22 @@ const difficulties = ["Easy", "Medium", "Hard", "Unknown"];
 export default function ProblemForm({ initialProblem, onSubmit, onClose }) {
   const [form, setForm] = useState(blankProblem);
   const [autoFillMessage, setAutoFillMessage] = useState("");
+  const [initialPatternsText, setInitialPatternsText] = useState("");
 
   useEffect(() => {
     if (!initialProblem) {
       setForm(blankProblem);
+      setInitialPatternsText("");
       return;
     }
+    const patternsText = getProblemPatterns(initialProblem).join(", ");
+    setInitialPatternsText(patternsText);
     setForm({
       name: initialProblem.name,
       platform: initialProblem.platform,
       difficulty: initialProblem.difficulty,
       topic: initialProblem.topic,
+      patternsText,
       url: initialProblem.url,
       description: initialProblem.description || "",
       notes: initialProblem.notes || "",
@@ -71,7 +78,13 @@ export default function ProblemForm({ initialProblem, onSubmit, onClose }) {
   function handleSubmit(event) {
     event.preventDefault();
     if (!form.name.trim() || !form.topic.trim()) return;
-    onSubmit(form);
+    const { patternsText, ...fields } = form;
+    const payload = { ...fields };
+    if (patternsText.trim() !== initialPatternsText.trim()) {
+      payload.patterns = normalizePatternNames(patternsText);
+      payload.patternSource = "manual";
+    }
+    onSubmit(payload);
     onClose();
   }
 
@@ -96,6 +109,10 @@ export default function ProblemForm({ initialProblem, onSubmit, onClose }) {
           <label>
             Topic
             <input name="topic" value={form.topic} onChange={updateField} required placeholder="Trees" />
+          </label>
+          <label>
+            Patterns <small>(optional, comma-separated; overrides automatic detection)</small>
+            <input name="patternsText" value={form.patternsText} onChange={updateField} placeholder="Sliding Window, Hash Map" />
           </label>
           <label>
             Platform

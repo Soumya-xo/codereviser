@@ -13,6 +13,7 @@ import {
   Trash2
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { getProblemStatus, STATUS_LABELS } from "../utils/analytics";
 import { humanDate, isOverdue } from "../utils/date";
@@ -103,7 +104,7 @@ function useRowMenuPosition(menuOpen, onClose, menuRef, panelRef) {
   return menuPos;
 }
 
-export default function ProblemCard({ problem, onEdit, onDelete, compact = false, futureMode = false, layout = "card" }) {
+export default function ProblemCard({ problem, onEdit, onDelete, compact = false, futureMode = false, layout = "card", highlighted = false }) {
   const { toggleFavorite, toggleArchive, togglePracticeLater, markPracticeDone, markRecentlyViewed } = useApp();
   const [notesOpen, setNotesOpen] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
@@ -129,7 +130,10 @@ export default function ProblemCard({ problem, onEdit, onDelete, compact = false
       : `${dueOverdue ? "Overdue since" : "Due"} ${humanDate(problem.nextRevisionDate)}`;
 
     return (
-      <article className={`problemRow ${dueOverdue ? "overdue" : ""}`}>
+      <article
+        data-problem-id={problem.id}
+        className={`problemRow ${dueOverdue ? "overdue" : ""} ${highlighted ? "problemRowHighlight" : ""}`}
+      >
         <button
           className={`rowFavorite ${problem.favorite ? "favoriteOn" : ""}`}
           type="button"
@@ -142,9 +146,9 @@ export default function ProblemCard({ problem, onEdit, onDelete, compact = false
         </button>
 
         <div className="problemRowMain">
-          <button className="linkButton problemRowTitle" type="button" onClick={() => markRecentlyViewed(problem.id)}>
+          <Link className="linkButton problemRowTitle" to={`/problems/${problem.id}`} onClick={() => markRecentlyViewed(problem.id)}>
             {problem.name}
-          </button>
+          </Link>
           <div className="problemRowTags">
             <span className={`difficulty ${difficultyClass[problem.difficulty]}`}>{problem.difficulty}</span>
             <span className="rowMetaText">{problem.platform}</span>

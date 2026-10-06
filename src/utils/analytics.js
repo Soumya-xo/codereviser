@@ -1,5 +1,5 @@
-import { daysBetween, formatDate, isPastOrToday } from "./date";
-import { RATING_LABELS } from "./revision";
+import { daysBetween, formatDate, isPastOrToday } from "./date.js";
+import { RATING_LABELS } from "./revision.js";
 
 export const RATING_QUALITY = { forgot: 0, hard: 1, good: 2, easy: 3 };
 
@@ -135,7 +135,7 @@ export function getMostPracticedTopic(problems) {
   return top && top[1] > 0 ? top[0] : "No practice data yet";
 }
 
-export function calculateStreak(problems) {
+export function calculateStreak(problems, today = formatDate()) {
   const revisionDates = new Set();
   problems.forEach((problem) => {
     (problem.revisionHistory || []).forEach((entry) => {
@@ -144,7 +144,7 @@ export function calculateStreak(problems) {
   });
 
   let current = 0;
-  let cursor = formatDate();
+  let cursor = today;
   while (revisionDates.has(cursor)) {
     current += 1;
     const [year, month, day] = cursor.split("-").map(Number);
