@@ -1,80 +1,165 @@
-// Injected into the active tab's page via chrome.scripting.executeScript when the
-// user clicks "Capture current page" (popup.js). Runs in the PAGE's own DOM context -
-// it only reads the page, it never sends anything anywhere on its own. popup.js later
-// invokes window.__codeReviseExtractMetadata() with a second, separate
-// executeScript call and reads its return value.
+// Injected into the active tab by popup.js via chrome.scripting.executeScript.
+// Runs in the page's DOM, reads only the specific nodes listed in EXTRACTORS, and
+// returns a plain object. It never sends data anywhere; popup.js reads the result.
 //
-// Kept deliberately separate from popup.js: this file is the only place that knows
-// about page/DOM structure; popup.js only knows how to call it and stays UI-only.
+// Only the LeetCode difficulty selector was present in the committed design. Every other
+// selector below was written without live access to the site and MUST be verified
+// manually in a browser before it is relied on. A selector that matches nothing yields
+// Unknown / [] / null, never a guessed value.
 
 (function () {
   const DIFFICULTIES = ["Easy", "Medium", "Hard"];
+  const MAX_TITLE_LENGTH = 200;
+  const MAX_TOPIC_LENGTH = 60;
+  const MAX_TOPICS = 20;
+  const MAX_DESCRIPTION_LENGTH = 1000;
 
-  function detectPlatform() {
-    const host = location.hostname;
-    if (host.includes("leetcode.com")) return "leetcode";
-    if (host.includes("geeksforgeeks.org")) return "geeksforgeeks";
-    if (host.includes("codeforces.com")) return "codeforces";
-    if (host.includes("codechef.com")) return "codechef";
-    if (host.includes("hackerrank.com")) return "hackerrank";
+  const PLATFORMS = [
+    { name: "LeetCode", hosts: ["leetcode.com"], path: /^\/problems\/[^/]+/ },
+    { name: "GeeksForGeeks", hosts: ["geeksforgeeks.org"], path: /^\/problems\/[^/]+/ },
+    {
+      name: "Codeforces",
+      hosts: ["codeforces.com"],
+      path: /^\/(?:problemset\/problem|contest)\/\d+\/[^/]+|^\/gym\/\d+\/problem\/[^/]+/
+    },
+    { name: "CodeChef", hosts: ["codechef.com"], path: /^\/(?:practice\/[^/]+\/)?problems\/[^/]+/ },
+    { name: "HackerRank", hosts: ["hackerrank.com"], path: /^\/(?:challenges|contests\/[^/]+\/challenges)\/[^/]+/ }
+  ];
+
+  // Empty arrays mean no reliable source exists for that field on that platform.
+  const EXTRACTORS = {
+    LeetCode: {
+      title: ['[data-cy="question-title"]'],
+      difficulty: ['[class*="text-difficulty-easy"], [class*="text-difficulty-medium"], [class*="text-difficulty-hard"]'],
+      topics: ['a[href^="/tag/"]'],
+      description: ['[data-track-load="description_content"]']
+    },
+    GeeksForGeeks: {
+      title: [".problems_header_description h3"],
+      difficulty: [".problems_header_description .difficulty"],
+      topics: [".problems_tag_container a"],
+      description: [".problems_problem_content"]
+    },
+    Codeforces: {
+      title: [".problem-statement .header .title"],
+      difficulty: [],
+      topics: [".tag-box"],
+      description: []
+    },
+    CodeChef: {
+      title: ["h1.problem-title"],
+      difficulty: [],
+      topics: [".problem-tags a"],
+      description: ["#problem-statement"]
+    },
+    HackerRank: {
+      title: [".challenge-page-label"],
+      difficulty: [".challenge-difficulty"],
+      topics: [".skills-list a"],
+      description: [".challenge-body"]
+    }
+  };
+
+  function cleanText(value) {
+    return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  }
+
+  function textOf(element) {
+    return element ? cleanText(element.textContent) : "";
+  }
+
+  function normalizeDifficulty(value) {
+    const text = cleanText(value).replace(/^difficulty\s*:?\s*/i, "").toLowerCase();
+    return DIFFICULTIES.find((difficulty) => difficulty.toLowerCase() === text) || null;
+  }
+
+  function normalizeTitle(value) {
+    const text = cleanText(value).replace(/^\d+\.\s+/, "");
+    return text && text.length <= MAX_TITLE_LENGTH ? text : null;
+  }
+
+  function titleFromTabTitle(value) {
+    const withoutSiteName = cleanText(value).replace(
+      /\s*[-|]\s*(LeetCode|GeeksforGeeks|Codeforces|CodeChef|HackerRank)\b.*$/i,
+      ""
+    );
+    return normalizeTitle(withoutSiteName);
+  }
+
+  function normalizeTopics(values) {
+    const seen = new Set();
+    const topics = [];
+    for (const value of values) {
+      const topic = cleanText(value);
+      const key = topic.toLowerCase();
+      if (!topic || topic.length > MAX_TOPIC_LENGTH || seen.has(key)) continue;
+      seen.add(key);
+      topics.push(topic);
+      if (topics.length === MAX_TOPICS) break;
+    }
+    return topics;
+  }
+
+  function normalizeDescription(value) {
+    const text = cleanText(value);
+    if (!text) return null;
+    return text.length > MAX_DESCRIPTION_LENGTH ? text.slice(0, MAX_DESCRIPTION_LENGTH).trimEnd() : text;
+  }
+
+  function readFirst(doc, selectors, normalize) {
+    for (const selector of selectors) {
+      const value = normalize(textOf(doc.querySelector(selector)));
+      if (value) return value;
+    }
     return null;
   }
 
-  function extractLeetCode() {
-    // LeetCode's difficulty pill has, across several UI rewrites, kept a stable
-    // class-name *fragment* ("text-difficulty-easy" / "-medium" / "-hard") even as the
-    // hashed utility classes around it change between deploys. This targets only that
-    // fragment - never the editor's language picker, the tag list, company tags, the
-    // difficulty filter dropdown, or "Similar Questions" cards, none of which use this
-    // class pattern. The matched text is also required to be exactly "Easy", "Medium",
-    // or "Hard" before it's trusted, so an unrelated element that merely shares part of
-    // the class name can never produce a wrong difficulty.
-    //
-    // This selector could NOT be verified against a live LeetCode page during
-    // development (no network access to leetcode.com was available in that
-    // environment). If LeetCode's markup no longer matches, this safely finds nothing
-    // and difficulty stays "Unknown" - it never guesses.
-    let difficulty = "Unknown";
-    const pill = document.querySelector(
-      '[class*="text-difficulty-easy"], [class*="text-difficulty-medium"], [class*="text-difficulty-hard"]'
-    );
-    if (pill) {
-      const text = pill.textContent.trim();
-      if (DIFFICULTIES.includes(text)) difficulty = text;
+  function collectTopics(doc, selectors) {
+    for (const selector of selectors) {
+      const topics = normalizeTopics(Array.from(doc.querySelectorAll(selector), textOf));
+      if (topics.length) return topics;
     }
+    return [];
+  }
 
-    const titleMatch = document.title.match(/^(\d+)\.\s*(.+?)\s*-\s*LeetCode/);
-    const slugMatch = location.pathname.match(/\/problems\/([^/]+)/);
+  function safely(read, fallback) {
+    try {
+      return read();
+    } catch {
+      return fallback;
+    }
+  }
 
+  function detectPlatform(hostname, pathname) {
+    const host = String(hostname || "").toLowerCase();
+    return (
+      PLATFORMS.find(
+        (platform) =>
+          platform.hosts.some((domain) => host === domain || host.endsWith(`.${domain}`)) &&
+          platform.path.test(pathname)
+      ) || null
+    );
+  }
+
+  function extractPage(doc, loc, tabTitle) {
+    const platform = detectPlatform(loc.hostname, loc.pathname);
+    if (!platform) return { status: "unsupported" };
+
+    const selectors = EXTRACTORS[platform.name];
     return {
-      platform: "LeetCode",
-      slug: slugMatch ? slugMatch[1] : "",
-      name: titleMatch ? `${titleMatch[1]}. ${titleMatch[2]}` : document.title.replace(/\s*-\s*LeetCode\s*$/, ""),
-      difficulty,
-      // Topic tags are frequently hidden behind a "show topics" / premium-only
-      // control on LeetCode, so they are not reliably present in the DOM at capture
-      // time. Left empty rather than guessed; the existing "Other" topic fallback
-      // in problemMetadata.js already covers this case unchanged.
-      topics: [],
-      url: location.href
+      status: "ok",
+      platform: platform.name,
+      url: loc.href,
+      title: safely(() => readFirst(doc, selectors.title, normalizeTitle), null) || titleFromTabTitle(tabTitle),
+      difficulty: safely(() => readFirst(doc, selectors.difficulty, normalizeDifficulty), null) || "Unknown",
+      topics: safely(() => collectTopics(doc, selectors.topics), []),
+      description: safely(() => readFirst(doc, selectors.description, normalizeDescription), null)
     };
   }
 
-  // GeeksForGeeks, Codeforces, CodeChef, and HackerRank extraction was not
-  // implemented in this pass: their current DOM structure could not be verified
-  // against a live page either, and the task explicitly prioritized LeetCode.
-  // Returning null for them means the existing URL-based problemMetadata.js guess
-  // (name/topic from the URL slug, difficulty "Unknown") continues to apply exactly
-  // as it did before this change - nothing about their capture behavior changes.
-  function extractUnsupported() {
-    return null;
-  }
-
-  window.__codeReviseExtractMetadata = function () {
+  window.__codeReviseExtractMetadata = function (tabTitle) {
     try {
-      const platform = detectPlatform();
-      if (platform === "leetcode") return extractLeetCode();
-      return extractUnsupported();
+      return extractPage(document, location, tabTitle);
     } catch {
       return null;
     }

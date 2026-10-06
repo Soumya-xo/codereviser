@@ -7,6 +7,28 @@ import { getProblemMetadataFromUrl } from "../utils/problemMetadata";
 
 const processedCaptureKeys = new Set();
 const VALID_DIFFICULTIES = ["Easy", "Medium", "Hard"];
+const SUPPORTED_PLATFORMS = ["LeetCode", "GeeksForGeeks", "Codeforces", "CodeChef", "HackerRank"];
+const MAX_TITLE_LENGTH = 200;
+const MAX_TOPIC_LENGTH = 60;
+const MAX_TOPICS = 20;
+const MAX_DESCRIPTION_LENGTH = 1000;
+
+function cleanText(value = "") {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function cleanTopics(values) {
+  const seen = new Set();
+  const topics = [];
+  values.forEach((value) => {
+    const topic = cleanText(value);
+    const key = topic.toLowerCase();
+    if (!topic || topic.length > MAX_TOPIC_LENGTH || seen.has(key) || topics.length >= MAX_TOPICS) return;
+    seen.add(key);
+    topics.push(topic);
+  });
+  return topics;
+}
 
 export default function Capture() {
   const [searchParams] = useSearchParams();
@@ -16,7 +38,10 @@ export default function Capture() {
 
   const url = searchParams.get("url") || "";
   const pageTitle = searchParams.get("title") || "";
+  const platformParam = searchParams.get("platform") || "";
   const extractedDifficulty = searchParams.get("difficulty") || "";
+  const topicsParam = searchParams.getAll("topic").join("\n");
+  const descriptionParam = searchParams.get("description") || "";
   const normalizedUrl = normalizeProblemUrl(url);
 
   const capturedProblem = useMemo(() => {
@@ -24,17 +49,25 @@ export default function Capture() {
     if (!metadata) return null;
 
     const genericNames = ["Coding Problem", "CodeChef Problem", "Codeforces Problem", "HackerRank Challenge"];
+    const fallbackName = genericNames.includes(metadata.name) && pageTitle ? pageTitle : metadata.name;
+    const extractedTitle = cleanText(pageTitle).slice(0, MAX_TITLE_LENGTH);
+    const extractedTopics = cleanTopics(topicsParam.split("\n"));
+    const extractedDescription = cleanText(descriptionParam).slice(0, MAX_DESCRIPTION_LENGTH);
+
     return {
       ...metadata,
-      name: genericNames.includes(metadata.name) && pageTitle ? pageTitle : metadata.name,
+      name: extractedTitle || fallbackName,
+      platform: SUPPORTED_PLATFORMS.includes(platformParam) ? platformParam : metadata.platform,
       // The extension only sends a "difficulty" param when it actually read one off
       // the live page DOM - trust that over the URL-slug catalog guess when present.
       difficulty: VALID_DIFFICULTIES.includes(extractedDifficulty) ? extractedDifficulty : metadata.difficulty,
+      topic: extractedTopics.length ? extractedTopics.join(", ") : metadata.topic,
+      description: extractedDescription || metadata.description,
       dateSolved: new Date().toISOString().slice(0, 10),
       notes: "",
       favorite: false
     };
-  }, [extractedDifficulty, pageTitle, url]);
+  }, [descriptionParam, extractedDifficulty, pageTitle, platformParam, topicsParam, url]);
 
   const alreadyExists = problems.some((problem) => normalizeProblemUrl(problem.url) === normalizedUrl);
 
