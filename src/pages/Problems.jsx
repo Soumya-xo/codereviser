@@ -1,5 +1,6 @@
 import { Filter, Plus, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EmptyState from "../components/EmptyState";
 import ProblemCard from "../components/ProblemCard";
@@ -46,6 +47,26 @@ export default function Problems() {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("due");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [highlightId, setHighlightId] = useState(null);
+  const focusId = searchParams.get("focus");
+
+  useEffect(() => {
+    if (!focusId || !problems.some((problem) => problem.id === focusId)) return;
+    const row = document.querySelector(`[data-problem-id="${CSS.escape(focusId)}"]`);
+    if (row) {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      row.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+      setHighlightId(focusId);
+    }
+    setSearchParams({}, { replace: true });
+  }, [focusId, problems, setSearchParams]);
+
+  useEffect(() => {
+    if (!highlightId) return undefined;
+    const timer = setTimeout(() => setHighlightId(null), 2600);
+    return () => clearTimeout(timer);
+  }, [highlightId]);
   const [filters, setFilters] = useState({
     topic: all,
     difficulty: all,
@@ -193,6 +214,7 @@ export default function Problems() {
                 key={problem.id}
                 problem={problem}
                 layout="row"
+                highlighted={problem.id === highlightId}
                 onEdit={(item) => {
                   setEditing(item);
                   setFormOpen(true);

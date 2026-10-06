@@ -1,17 +1,17 @@
 import { CheckCircle2, ExternalLink, FileText, Save, Trophy, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useApp } from "../context/AppContext";
 import { getDueProblems } from "../utils/analytics";
 import { formatDate, humanDate } from "../utils/date";
 import { countRevisionsCompleted } from "../utils/goals";
-import { getAdaptiveIntervalDays, getNextRevisionDate, MASTERY_REVISION_COUNT, RATING_LABELS, RATINGS } from "../utils/revision";
+import { getAdaptiveIntervalDays, getNextRevisionDate, MASTERY_REVISION_COUNT, needsReflection, RECALL_CHOICES } from "../utils/revision";
 
 export default function RevisionSession({ problem, onClose }) {
   const { problems, completeRevision } = useApp();
   const [step, setStep] = useState("attempt");
   const [rating, setRating] = useState("");
-  const [approach, setApproach] = useState(problem.revisionNotes?.approach || "");
+  const [approach] = useState(problem.revisionNotes?.approach || "");
   const [mistake, setMistake] = useState(problem.revisionNotes?.mistake || "");
   const [keyInsight, setKeyInsight] = useState(problem.revisionNotes?.keyInsight || "");
   const [result, setResult] = useState(null);
@@ -29,22 +29,32 @@ export default function RevisionSession({ problem, onClose }) {
   if (problem.revisionNotes?.keyInsight) contextLines.push(`Key insight: ${problem.revisionNotes.keyInsight}`);
   const contextText = contextLines.join("\n\n");
 
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   function handleSubmit(event) {
     event.preventDefault();
     if (!rating) return;
 
-    const projectedDays = getAdaptiveIntervalDays({
+    const intervalDays = getAdaptiveIntervalDays({
       previousIntervalDays: problem.lastIntervalDays ?? null,
       easeFactor: problem.easeFactor ?? null,
       rating
     });
-    const nextReviewDate = getNextRevisionDate(today, projectedDays);
+    const nextReviewDate = getNextRevisionDate(today, intervalDays);
     const willBeMastered = (problem.revisionCount || 0) + 1 >= MASTERY_REVISION_COUNT;
 
     completeRevision(problem.id, { rating, approach, mistake, keyInsight });
-    setResult({ nextReviewDate, willBeMastered });
+    setResult({ nextReviewDate, intervalDays, willBeMastered });
     setStep("done");
   }
+
+  const reflecting = needsReflection(rating);
 
   return createPortal(
     <div className="dialogLayer" role="presentation">
@@ -86,7 +96,7 @@ export default function RevisionSession({ problem, onClose }) {
             </p>
             {problem.revisionCount > 0 && (
               <p className="muted">
-                You've revised this {problem.revisionCount} time{problem.revisionCount === 1 ? "" : "s"} before
+                You&apos;ve revised this {problem.revisionCount} time{problem.revisionCount === 1 ? "" : "s"} before
                 {problem.lastRevised ? `, last on ${humanDate(problem.lastRevised)}` : ""}.
               </p>
             )}
@@ -113,47 +123,50 @@ export default function RevisionSession({ problem, onClose }) {
         {step === "rate" && (
           <form className="sessionSteps" onSubmit={handleSubmit}>
             <div>
-              <span className="eyebrow">How well did you remember this?</span>
-              <div className="ratingRow">
-                {RATINGS.map((value) => {
-                  const projectedDays = getAdaptiveIntervalDays({
+              <span className="eyebrow" id="recall-label">How well did you remember it?</span>
+              <div className="ratingRow recallRow" role="group" aria-labelledby="recall-label">
+                {RECALL_CHOICES.map((choice) => {
+                  const intervalDays = getAdaptiveIntervalDays({
                     previousIntervalDays: problem.lastIntervalDays ?? null,
                     easeFactor: problem.easeFactor ?? null,
-                    rating: value
+                    rating: choice.value
                   });
                   return (
                     <button
-                      key={value}
+                      key={choice.value}
                       type="button"
-                      className={`ratingButton ${value} ${rating === value ? "selected" : ""}`}
-                      onClick={() => setRating(value)}
-                      aria-pressed={rating === value}
+                      className={`ratingButton recallButton ${choice.value} ${rating === choice.value ? "selected" : ""}`}
+                      onClick={() => setRating(choice.value)}
+                      aria-pressed={rating === choice.value}
                     >
-                      <strong>{RATING_LABELS[value]}</strong>
-                      <span>+{projectedDays}d</span>
+                      <span className="recallEmoji" aria-hidden="true">
+                        {choice.emoji}
+                      </span>
+                      <strong>{choice.label}</strong>
+                      <span>+{intervalDays}d</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
+            {reflecting && (
+              <div className="notesEditor">
+                <label>
+                  What did you forget or find confusing?
+                  <textarea
+                    rows="2"
+                    value={mistake}
+                    onChange={(event) => setMistake(event.target.value)}
+                    placeholder="e.g. Forgot when to shrink the left side"
+                  />
+                </label>
+              </div>
+            )}
+
             <div className="notesEditor">
-              <div>
-                <span className="eyebrow">Notes and Mistakes</span>
-                <h3>Record what will help next time</h3>
-              </div>
-              <div className="miniFieldGrid">
-                <label>
-                  Approach
-                  <textarea rows="3" value={approach} onChange={(event) => setApproach(event.target.value)} placeholder="How did you solve it?" />
-                </label>
-                <label>
-                  Mistake
-                  <textarea rows="3" value={mistake} onChange={(event) => setMistake(event.target.value)} placeholder="What went wrong?" />
-                </label>
-              </div>
               <label>
-                Key Insight
+                {reflecting ? "What should you remember next time?" : "Key insight (optional)"}
                 <textarea
                   rows="2"
                   value={keyInsight}
@@ -168,7 +181,7 @@ export default function RevisionSession({ problem, onClose }) {
                 Back
               </button>
               <button className="button primary" type="submit" disabled={!rating}>
-                <Save size={16} /> Complete revision
+                <Save size={16} /> Save revision
               </button>
             </div>
           </form>
@@ -184,7 +197,12 @@ export default function RevisionSession({ problem, onClose }) {
             {result.willBeMastered ? (
               <span className="statusBadge mastered">Mastered · 5 revisions complete</span>
             ) : (
-              <p className="sessionNextReview">Next review · {humanDate(result.nextReviewDate)}</p>
+              <div className="sessionNextReview">
+                <span>
+                  Next review · <strong>{humanDate(result.nextReviewDate)}</strong>
+                </span>
+                <span className="muted">Interval · {result.intervalDays} days</span>
+              </div>
             )}
             <div className="drawerActions sessionDoneActions">
               <button className="button primary" type="button" onClick={onClose}>

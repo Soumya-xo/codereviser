@@ -7,6 +7,7 @@ import Capture from "./pages/Capture";
 import Dashboard from "./pages/Dashboard";
 import FuturePractice from "./pages/FuturePractice";
 import Login from "./pages/Login";
+import ProblemDetail from "./pages/ProblemDetail";
 import Problems from "./pages/Problems";
 import Settings from "./pages/Settings";
 import Today from "./pages/Today";
@@ -33,6 +34,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/problems" element={<Problems />} />
+        <Route path="/problems/:problemId" element={<ProblemDetail />} />
         <Route path="/today" element={<Today />} />
         <Route path="/future" element={<FuturePractice />} />
         <Route path="/analytics" element={<Analytics />} />

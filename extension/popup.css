@@ -2,6 +2,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   width: 320px;
   margin: 0;
@@ -13,7 +17,7 @@ body {
 main {
   padding: 16px;
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .brand {
@@ -22,15 +26,9 @@ main {
   gap: 10px;
 }
 
-.brand span {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  background: #14171f;
-  color: #fff;
-  font-weight: 800;
+.brand img {
+  display: block;
+  border-radius: 8px;
 }
 
 .brand strong,
@@ -48,20 +46,149 @@ p {
   line-height: 1.45;
 }
 
+button,
+select,
+input {
+  font: inherit;
+}
+
 button {
-  min-height: 42px;
+  min-height: 38px;
+  padding: 0 12px;
   border: 0;
   border-radius: 10px;
   background: #2563eb;
   color: #fff;
-  font: inherit;
   font-weight: 750;
   cursor: pointer;
 }
 
+button.secondary {
+  background: #fff;
+  color: #14171f;
+  border: 1px solid #d0d5dd;
+}
+
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.7;
+  opacity: 0.6;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.verdict {
+  color: #15803d;
+  font-weight: 750;
+}
+
+.previewTitle {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  color: #344054;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.description {
+  font-size: 0.8rem;
+  color: #667085;
+  overflow-wrap: anywhere;
+}
+
+.checklist {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.checklist li {
+  display: grid;
+  grid-template-columns: 16px 84px 1fr;
+  align-items: center;
+  gap: 6px;
+}
+
+.checklist .mark {
+  font-weight: 800;
+  text-align: center;
+}
+
+.checklist li[data-state="detected"] .mark,
+.checklist li[data-state="edited"] .mark {
+  color: #15803d;
+}
+
+.checklist li[data-state="fallback"] .mark {
+  color: #b45309;
+}
+
+.checklist li[data-state="unavailable"] .mark,
+.checklist li[data-state="not-on-platform"] .mark {
+  color: #98a2b3;
+}
+
+.checklist .value {
+  color: #344054;
+}
+
+.editForm {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid #eaecf0;
+}
+
+.editForm label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: #344054;
+}
+
+.editForm small {
+  color: #98a2b3;
+  font-weight: 400;
+}
+
+.editForm input,
+.editForm select {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  color: #14171f;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.row button {
+  flex: 1;
 }
 
 .result {
@@ -74,10 +201,6 @@ button:disabled {
   background: #fff;
 }
 
-.result[hidden] {
-  display: none;
-}
-
 .result.error {
   border-left-color: #dc2626;
 }
@@ -88,6 +211,10 @@ button:disabled {
 
 .result.error > strong {
   color: #b91c1c;
+}
+
+.result button {
+  margin-top: 6px;
 }
 
 .resultName {

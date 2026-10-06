@@ -1,4 +1,4 @@
-import { addDays, formatDate } from "./date";
+import { addDays, formatDate } from "./date.js";
 
 export const RATINGS = ["forgot", "hard", "good", "easy"];
 
@@ -24,6 +24,18 @@ const EASE_DELTA = { forgot: -0.3, hard: -0.15, good: 0, easy: 0.15 };
 
 export function isValidRating(rating) {
   return RATINGS.includes(rating);
+}
+
+// Presentation of the existing ratings; each value is the stored rating used by the scheduler.
+export const RECALL_CHOICES = [
+  { value: "forgot", label: "Forgot", emoji: "😫" },
+  { value: "hard", label: "Partial", emoji: "😐" },
+  { value: "good", label: "Good", emoji: "🙂" },
+  { value: "easy", label: "Perfect", emoji: "🔥" }
+];
+
+export function needsReflection(rating) {
+  return rating === "forgot" || rating === "hard";
 }
 
 export function getInitialRevisionDate(dateSolved) {

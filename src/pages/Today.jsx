@@ -5,16 +5,19 @@ import EmptyState from "../components/EmptyState";
 import GoalProgressRow from "../components/GoalProgressRow";
 import GoalSettingsForm from "../components/GoalSettingsForm";
 import ProblemCard from "../components/ProblemCard";
+import TodaysFocus from "../components/TodaysFocus";
 import { useApp } from "../context/AppContext";
 import { getDueProblems } from "../utils/analytics";
 import { isOverdue } from "../utils/date";
 import { getDailyProgress, getWeeklyProgress } from "../utils/goals";
+import { getDailyQueue, getWeakAreas } from "../utils/learning";
 
 export default function Today() {
   const { problems, goals, setGoals } = useApp();
   const [editingGoals, setEditingGoals] = useState(false);
 
   const due = getDueProblems(problems);
+  const focusItems = getDailyQueue(problems, { weakAreas: getWeakAreas(problems) });
   const overdue = due.filter((problem) => isOverdue(problem.nextRevisionDate));
   const dueToday = due.filter((problem) => !isOverdue(problem.nextRevisionDate));
 
@@ -43,6 +46,8 @@ export default function Today() {
           <CheckCheck size={18} /> {due.length} due
         </div>
       </div>
+
+      <TodaysFocus items={focusItems} />
 
       <section className="card goalsCard">
         <div className="sectionHeader">

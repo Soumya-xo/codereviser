@@ -1,96 +1,78 @@
-import { CheckCircle2, ExternalLink, Plus } from "lucide-react";
+import { BookmarkCheck, CheckCircle2, ExternalLink, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+import {
+  canAddToFuturePractice,
+  decideCaptureOutcome,
+  problemFocusPath,
+  resolveCaptureDetails
+} from "../utils/captureDetails";
 import { normalizeProblemUrl } from "../utils/problemIdentity";
 import { getProblemMetadataFromUrl } from "../utils/problemMetadata";
 
-const processedCaptureKeys = new Set();
-const VALID_DIFFICULTIES = ["Easy", "Medium", "Hard"];
-const SUPPORTED_PLATFORMS = ["LeetCode", "GeeksForGeeks", "Codeforces", "CodeChef", "HackerRank"];
-const MAX_TITLE_LENGTH = 200;
-const MAX_TOPIC_LENGTH = 60;
-const MAX_TOPICS = 20;
-const MAX_DESCRIPTION_LENGTH = 1000;
-
-function cleanText(value = "") {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function cleanTopics(values) {
-  const seen = new Set();
-  const topics = [];
-  values.forEach((value) => {
-    const topic = cleanText(value);
-    const key = topic.toLowerCase();
-    if (!topic || topic.length > MAX_TOPIC_LENGTH || seen.has(key) || topics.length >= MAX_TOPICS) return;
-    seen.add(key);
-    topics.push(topic);
-  });
-  return topics;
-}
+const savedCaptureKeys = new Set();
 
 export default function Capture() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { captureProblem, cloudReady, problems } = useApp();
-  const [status, setStatus] = useState("ready");
+  const { addProblem, captureProblem, cloudReady, problems, togglePracticeLater } = useApp();
+  const [outcome, setOutcome] = useState(null);
+  const [futureAdded, setFutureAdded] = useState(false);
 
+  const paramsKey = searchParams.toString();
   const url = searchParams.get("url") || "";
-  const pageTitle = searchParams.get("title") || "";
-  const platformParam = searchParams.get("platform") || "";
-  const extractedDifficulty = searchParams.get("difficulty") || "";
-  const topicsParam = searchParams.getAll("topic").join("\n");
-  const descriptionParam = searchParams.get("description") || "";
   const normalizedUrl = normalizeProblemUrl(url);
 
   const capturedProblem = useMemo(() => {
-    const metadata = getProblemMetadataFromUrl(url);
-    if (!metadata) return null;
-
-    const genericNames = ["Coding Problem", "CodeChef Problem", "Codeforces Problem", "HackerRank Challenge"];
-    const fallbackName = genericNames.includes(metadata.name) && pageTitle ? pageTitle : metadata.name;
-    const extractedTitle = cleanText(pageTitle).slice(0, MAX_TITLE_LENGTH);
-    const extractedTopics = cleanTopics(topicsParam.split("\n"));
-    const extractedDescription = cleanText(descriptionParam).slice(0, MAX_DESCRIPTION_LENGTH);
-
-    return {
-      ...metadata,
-      name: extractedTitle || fallbackName,
-      platform: SUPPORTED_PLATFORMS.includes(platformParam) ? platformParam : metadata.platform,
-      // The extension only sends a "difficulty" param when it actually read one off
-      // the live page DOM - trust that over the URL-slug catalog guess when present.
-      difficulty: VALID_DIFFICULTIES.includes(extractedDifficulty) ? extractedDifficulty : metadata.difficulty,
-      topic: extractedTopics.length ? extractedTopics.join(", ") : metadata.topic,
-      description: extractedDescription || metadata.description,
-      dateSolved: new Date().toISOString().slice(0, 10),
-      notes: "",
-      favorite: false
-    };
-  }, [descriptionParam, extractedDifficulty, pageTitle, platformParam, topicsParam, url]);
+    const params = new URLSearchParams(paramsKey);
+    return resolveCaptureDetails(
+      {
+        title: params.get("title") || "",
+        platform: params.get("platform") || "",
+        difficulty: params.get("difficulty") || "",
+        topics: params.getAll("topic"),
+        description: params.get("description") || "",
+        fromExtension: params.get("source") === "extension"
+      },
+      getProblemMetadataFromUrl(url)
+    );
+  }, [paramsKey, url]);
 
   const alreadyExists = problems.some((problem) => normalizeProblemUrl(problem.url) === normalizedUrl);
+  const savedProblem = problems.find((problem) => normalizeProblemUrl(problem.url) === normalizedUrl);
 
   useEffect(() => {
-    if (!capturedProblem || !cloudReady || status !== "ready") return;
+    if (outcome || !capturedProblem) return;
+    const decision = decideCaptureOutcome({ ready: cloudReady, alreadyExists });
+    if (!decision) return;
 
-    const captureKey = `${normalizedUrl}:${capturedProblem.name}`;
-    if (processedCaptureKeys.has(captureKey)) {
-      setStatus("saving");
+    if (decision === "duplicate") {
+      setOutcome("duplicate");
       return;
     }
 
-    processedCaptureKeys.add(captureKey);
+    const captureKey = `${normalizedUrl}:${capturedProblem.name}`;
+    if (savedCaptureKeys.has(captureKey)) return;
+    savedCaptureKeys.add(captureKey);
     captureProblem(capturedProblem);
-    setStatus("saving");
-  }, [alreadyExists, captureProblem, capturedProblem, cloudReady, navigate, normalizedUrl, status]);
+    setOutcome("captured");
+  }, [alreadyExists, captureProblem, capturedProblem, cloudReady, normalizedUrl, outcome]);
 
-  useEffect(() => {
-    if (status !== "saving" || !alreadyExists) return;
+  function captureAnyway() {
+    addProblem(capturedProblem);
+    setOutcome("copy");
+  }
 
-    setStatus("saved");
-    navigate("/problems", { replace: true });
-  }, [alreadyExists, navigate, normalizedUrl, status]);
+  function addToFuturePractice() {
+    if (!canAddToFuturePractice({ problem: savedProblem, pending: futureAdded })) return;
+    togglePracticeLater(savedProblem.id);
+    setFutureAdded(true);
+  }
+
+  const futureDone = futureAdded || Boolean(savedProblem?.practiceLater);
+  const futureDisabled = futureDone || !savedProblem;
+  const openPath = savedProblem ? problemFocusPath(savedProblem.id) : "/problems";
 
   return (
     <div className="pageStack">
@@ -98,57 +80,87 @@ export default function Capture() {
         <div>
           <span className="eyebrow">Browser capture</span>
           <h1>One-click problem capture</h1>
-          <p>Problem details are detected from the URL and saved to your current CodeRevise account.</p>
+          <p>Review the problem details, then save them to your CodeRevise account.</p>
         </div>
       </div>
 
       <section className="card captureCard">
         {capturedProblem ? (
-          <>
-            <div className="captureStatus">
-              <CheckCircle2 size={22} />
-              <div>
-                <h2>{status === "saving" ? "Saving problem" : alreadyExists ? "Already in your planner" : "Problem captured"}</h2>
-                <p>
-                  {status === "saving"
-                    ? "Adding it to your current account..."
-                    : alreadyExists
-                      ? "This URL already exists in your problem list."
-                      : "Saved with detected details."}
-                </p>
+          outcome === "captured" || outcome === "copy" ? (
+            <div className="capturePanel">
+              <div className="captureStatus">
+                <CheckCircle2 size={22} />
+                <div>
+                  <h2>{outcome === "copy" ? "Saved as a new entry" : "Problem captured"}</h2>
+                  <p className="captureName">{capturedProblem.name}</p>
+                  <p className="muted">
+                    {capturedProblem.difficulty} · {capturedProblem.platform}
+                  </p>
+                </div>
+              </div>
+
+              <p className="captureQuestion">What would you like to do?</p>
+
+              <div className="problemActions">
+                <Link className="button primary" to={openPath}>
+                  <ExternalLink size={16} /> Open Problem
+                </Link>
+                {outcome === "captured" &&
+                  (futureDone ? (
+                    <span className="captureDone">
+                      <BookmarkCheck size={16} /> {futureAdded ? "Added to Future Practice" : "In Future Practice"}
+                    </span>
+                  ) : (
+                    <button className="button secondary" type="button" onClick={addToFuturePractice} disabled={futureDisabled}>
+                      <BookmarkCheck size={16} /> Add to Future Practice
+                    </button>
+                  ))}
+                <button className="button secondary" type="button" onClick={() => navigate("/")}>
+                  Done
+                </button>
               </div>
             </div>
+          ) : (
+            <>
+              <div className="captureStatus">
+                <CheckCircle2 size={22} />
+                <div>
+                  <h2>{outcome === "duplicate" ? "Already captured" : "Problem detected"}</h2>
+                  <p>{outcome === "duplicate" ? "This URL is already in your problem list." : "Checking your planner..."}</p>
+                </div>
+              </div>
 
-            <div className="captureDetails">
-              <div>
-                <span>Problem</span>
-                <strong>{capturedProblem.name}</strong>
+              <div className="captureDetails">
+                <div>
+                  <span>Problem</span>
+                  <strong>{capturedProblem.name}</strong>
+                </div>
+                <div>
+                  <span>Platform</span>
+                  <strong>{capturedProblem.platform}</strong>
+                </div>
+                <div>
+                  <span>Difficulty</span>
+                  <strong>{capturedProblem.difficulty}</strong>
+                </div>
+                <div>
+                  <span>Topic</span>
+                  <strong>{capturedProblem.topic}</strong>
+                </div>
               </div>
-              <div>
-                <span>Platform</span>
-                <strong>{capturedProblem.platform}</strong>
-              </div>
-              <div>
-                <span>Difficulty</span>
-                <strong>{capturedProblem.difficulty}</strong>
-              </div>
-              <div>
-                <span>Topic</span>
-                <strong>{capturedProblem.topic}</strong>
-              </div>
-            </div>
 
-            <p className="muted">{capturedProblem.description}</p>
-
-            <div className="problemActions">
-              <Link className="button primary" to="/problems">
-                <Plus size={16} /> View in Problems
-              </Link>
-              <a className="button secondary" href={url} target="_blank" rel="noreferrer">
-                <ExternalLink size={16} /> Open original
-              </a>
-            </div>
-          </>
+              {outcome === "duplicate" && (
+                <div className="problemActions">
+                  <Link className="button primary" to={openPath}>
+                    <ExternalLink size={16} /> Open Problem
+                  </Link>
+                  <button className="button secondary" type="button" onClick={captureAnyway}>
+                    <Plus size={16} /> Capture Anyway
+                  </button>
+                </div>
+              )}
+            </>
+          )
         ) : (
           <div className="captureStatus errorText">
             <ExternalLink size={22} />

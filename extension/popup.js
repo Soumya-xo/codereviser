@@ -1,55 +1,157 @@
+import {
+  DIFFICULTY_CHOICES,
+  SUPPORTED_PLATFORMS,
+  buildCaptureParams,
+  classifyDetection,
+  describePreview,
+  normalizeDifficultyChoice,
+  normalizeTitleInput,
+  parseTopicsInput
+} from "./lib/preview.js";
+
 const APP_ORIGIN_PRODUCTION = "https://codereviser.vercel.app";
 const APP_ORIGIN_DEVELOPMENT = "http://127.0.0.1:5173";
 // Development only: set to true while running `npm run dev`. Keep false for the production build.
 const USE_DEVELOPMENT_APP = false;
 const APP_ORIGIN = USE_DEVELOPMENT_APP ? APP_ORIGIN_DEVELOPMENT : APP_ORIGIN_PRODUCTION;
 const CODE_REVISE_CAPTURE_URL = `${APP_ORIGIN}/capture`;
-const VALID_DIFFICULTIES = ["Easy", "Medium", "Hard"];
-const SUPPORTED_SITES = "LeetCode, GeeksforGeeks, Codeforces, CodeChef, HackerRank";
 
-const button = document.getElementById("captureButton");
 const statusText = document.getElementById("status");
-const resultBox = document.getElementById("result");
+const preview = document.getElementById("preview");
+const previewTitle = document.getElementById("previewTitle");
+const previewMeta = document.getElementById("previewMeta");
+const previewTopics = document.getElementById("previewTopics");
+const previewDescription = document.getElementById("previewDescription");
+const checklist = document.getElementById("checklist");
+const editForm = document.getElementById("editForm");
+const editTitle = document.getElementById("editTitle");
+const editDifficulty = document.getElementById("editDifficulty");
+const editTopics = document.getElementById("editTopics");
+const previewActions = document.getElementById("previewActions");
+const editButton = document.getElementById("editButton");
+const saveButton = document.getElementById("saveButton");
+const result = document.getElementById("result");
 const resultHeading = document.getElementById("resultHeading");
 const resultName = document.getElementById("resultName");
 const resultMeta = document.getElementById("resultMeta");
+const retryButton = document.getElementById("retryButton");
+
+let activeTab = null;
+let detected = null;
+let current = null;
+
+for (const choice of DIFFICULTY_CHOICES) {
+  editDifficulty.append(new Option(choice, choice));
+}
 
 function setStatus(message) {
   statusText.textContent = message;
 }
 
-function showResult({ tone, heading, name = "", meta = "" }) {
-  resultBox.className = `result ${tone}`;
-  resultHeading.textContent = heading;
-  resultName.textContent = name;
-  resultName.hidden = !name;
-  resultMeta.textContent = meta;
-  resultMeta.hidden = !meta;
-  resultBox.hidden = false;
+function hideAll() {
+  preview.hidden = true;
+  result.hidden = true;
+  retryButton.hidden = true;
 }
 
-function clearResult() {
-  resultBox.hidden = true;
+function showFailure(kind) {
+  const unsupported = kind === "unsupported";
+  result.className = "result error";
+  resultHeading.textContent = unsupported
+    ? "This page is not a supported coding problem."
+    : "Unable to detect this problem.";
+  resultName.textContent = "";
+  resultMeta.textContent = unsupported
+    ? `Supported sites: ${SUPPORTED_PLATFORMS.join(", ")}.`
+    : "Open a supported coding problem and try again.";
+  result.hidden = false;
+  retryButton.hidden = false;
+  setStatus("");
 }
 
-function showFailure() {
-  showResult({
-    tone: "error",
-    heading: "Unable to detect this problem.",
-    meta: "Open a supported coding problem and try again."
-  });
+function checklistRow(label, state, value) {
+  const row = document.createElement("li");
+  row.dataset.state = state;
+  const mark = document.createElement("span");
+  mark.className = "mark";
+  mark.setAttribute("aria-hidden", "true");
+  mark.textContent = state === "unavailable" || state === "not-on-platform" ? "—" : "✓";
+  const labelEl = document.createElement("span");
+  labelEl.className = "label";
+  labelEl.textContent = label;
+  const valueEl = document.createElement("span");
+  valueEl.className = "value";
+  valueEl.textContent = value;
+  row.append(mark, labelEl, valueEl);
+  return row;
 }
 
-function showUnsupported() {
-  showResult({
-    tone: "error",
-    heading: "This page is not a supported coding problem.",
-    meta: `Supported sites: ${SUPPORTED_SITES}.`
-  });
+function renderChecklist(p) {
+  const titleValue = p.status.title === "fallback" ? "from tab title" : p.status.title === "edited" ? "edited" : "";
+  const difficultyValue = {
+    detected: p.difficulty,
+    edited: `${p.difficulty} (edited)`,
+    unavailable: "Unknown",
+    "not-on-platform": "Not on this site"
+  }[p.status.difficulty];
+  const topicsValue = p.topics.length ? `${p.topics.length} found` : "None found";
+  const descriptionValue = p.description ? "Found" : "None found";
+
+  checklist.replaceChildren(
+    checklistRow("Title", p.status.title === "unavailable" ? "unavailable" : "detected", titleValue),
+    checklistRow("Difficulty", p.status.difficulty, difficultyValue),
+    checklistRow("Topics", p.status.topics, topicsValue),
+    checklistRow("Description", p.status.description, descriptionValue)
+  );
 }
 
-// Injects extraction.js into the tab and returns its result, or null if the page
-// cannot be read (restricted URL, injection error, or extraction threw).
+function renderPreview(p) {
+  previewTitle.textContent = p.title;
+  previewMeta.textContent = `${p.difficulty} · ${p.platform}`;
+  previewTopics.textContent = p.topics.length ? p.topics.join(" · ") : "No topics";
+  renderChecklist(p);
+  previewDescription.textContent = describePreview(p.description);
+  previewDescription.hidden = !p.description;
+  saveButton.disabled = !p.title;
+  preview.hidden = false;
+  result.hidden = true;
+}
+
+function openEditForm() {
+  editTitle.value = current.title || "";
+  editDifficulty.value = current.difficulty;
+  editTopics.value = current.topics.join(", ");
+  editForm.hidden = false;
+  previewActions.hidden = true;
+  editTitle.focus();
+}
+
+function closeEditForm() {
+  editForm.hidden = true;
+  previewActions.hidden = false;
+  editButton.focus();
+}
+
+function applyEdit(event) {
+  event.preventDefault();
+  const title = normalizeTitleInput(editTitle.value);
+  if (!title) {
+    editTitle.focus();
+    return;
+  }
+
+  const difficulty = normalizeDifficultyChoice(editDifficulty.value);
+  const topics = parseTopicsInput(editTopics.value);
+  const status = { ...current.status };
+  if (title !== detected.title) status.title = "edited";
+  if (difficulty !== detected.difficulty) status.difficulty = "edited";
+  if (topics.join("|") !== detected.topics.join("|")) status.topics = topics.length ? "edited" : "unavailable";
+
+  current = { ...current, title, difficulty, topics, status };
+  renderPreview(current);
+  closeEditForm();
+}
+
 async function readProblemDetails(tab) {
   try {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["extraction.js"] });
@@ -65,23 +167,29 @@ async function readProblemDetails(tab) {
   }
 }
 
-function isWebPage(url) {
-  return /^https?:/i.test(url || "");
-}
+async function detect() {
+  hideAll();
+  setStatus("Detecting problem...");
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url) {
+    setStatus("");
+    showFailure("failed");
+    return;
+  }
 
-function buildCaptureUrl(tab, details) {
-  const captureUrl = new URL(CODE_REVISE_CAPTURE_URL);
-  captureUrl.searchParams.set("url", tab.url);
-  captureUrl.searchParams.set("title", details.title);
-  captureUrl.searchParams.set("platform", details.platform);
-  if (VALID_DIFFICULTIES.includes(details.difficulty)) {
-    captureUrl.searchParams.set("difficulty", details.difficulty);
+  activeTab = tab;
+  const details = await readProblemDetails(tab);
+  const outcome = classifyDetection(details, tab.url);
+  if (outcome.kind !== "preview") {
+    showFailure(outcome.kind);
+    return;
   }
-  details.topics.forEach((topic) => captureUrl.searchParams.append("topic", topic));
-  if (details.description) {
-    captureUrl.searchParams.set("description", details.description);
-  }
-  return captureUrl;
+
+  detected = outcome.preview;
+  current = outcome.preview;
+  setStatus("Review the details, then save.");
+  renderPreview(current);
+  saveButton.focus();
 }
 
 async function openInCodeRevise(captureUrl) {
@@ -96,11 +204,7 @@ async function openInCodeRevise(captureUrl) {
   });
 
   if (existingCodeReviseTab?.id) {
-    await chrome.tabs.update(existingCodeReviseTab.id, {
-      active: true,
-      url: captureUrl.toString()
-    });
-
+    await chrome.tabs.update(existingCodeReviseTab.id, { active: true, url: captureUrl.toString() });
     if (existingCodeReviseTab.windowId) {
       await chrome.windows.update(existingCodeReviseTab.windowId, { focused: true });
     }
@@ -109,45 +213,34 @@ async function openInCodeRevise(captureUrl) {
   }
 }
 
-button.addEventListener("click", async () => {
-  button.disabled = true;
-  clearResult();
-  setStatus("Reading current tab...");
+async function save() {
+  if (!current?.title) return;
+  saveButton.disabled = true;
+  editButton.disabled = true;
+  setStatus("Saving...");
+
+  const captureUrl = new URL(CODE_REVISE_CAPTURE_URL);
+  for (const [key, value] of buildCaptureParams(current, activeTab.url)) {
+    captureUrl.searchParams.append(key, value);
+  }
 
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.url) {
-      setStatus("Could not read the current tab URL.");
-      return;
-    }
-
-    setStatus("Reading problem details...");
-    const details = await readProblemDetails(tab);
-
-    if (details?.status === "unsupported" || (!details && !isWebPage(tab.url))) {
-      setStatus("");
-      showUnsupported();
-      return;
-    }
-
-    if (details?.status !== "ok" || !details.title) {
-      setStatus("");
-      showFailure();
-      return;
-    }
-
-    const difficulty = VALID_DIFFICULTIES.includes(details.difficulty) ? details.difficulty : "Unknown";
-    showResult({
-      tone: "success",
-      heading: "Problem captured",
-      name: details.title,
-      meta: `${difficulty} · ${details.platform}`
-    });
-    setStatus("Sending to CodeRevise...");
-
-    await openInCodeRevise(buildCaptureUrl(tab, { ...details, difficulty }));
-    setStatus("Opened in CodeRevise.");
-  } finally {
-    button.disabled = false;
+    await openInCodeRevise(captureUrl);
+    setStatus("Sent to CodeRevise. Check that tab to confirm it was saved.");
+  } catch {
+    setStatus("Could not open CodeRevise. Try again.");
+    saveButton.disabled = false;
+    editButton.disabled = false;
   }
+}
+
+editButton.addEventListener("click", openEditForm);
+saveButton.addEventListener("click", save);
+editForm.addEventListener("submit", applyEdit);
+document.getElementById("cancelEdit").addEventListener("click", closeEditForm);
+editForm.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeEditForm();
 });
+retryButton.addEventListener("click", detect);
+
+detect();
